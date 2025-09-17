@@ -1,0 +1,10 @@
+@import "tailwindcss";
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* ซ่อน scrollbar ทั้งหมด */
+}
+
+canvas {
+  display: block; /* แก้ปัญหาขอบขาวด้านล่าง canvas */
+}
