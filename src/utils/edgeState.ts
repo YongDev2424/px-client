@@ -9,7 +9,7 @@ export interface EdgeData {
   id: string;                    // ID เฉพาะของ Edge
   sourceNode: Container;         // Node ต้นทาง
   targetNode: Container;         // Node ปลายทาง
-  edgeGraphics: Graphics;        // Graphics object ของเส้นเชื่อม
+  edgeGraphics: Container;       // Container ของ Edge (เปลี่ยนจาก Graphics เป็น Container)
   labelText: string;             // ข้อความ label บนเส้น
 }
 
@@ -35,6 +35,9 @@ class EdgeStateManager {
   // Node ที่เริ่มต้นการสร้าง edge (เมื่อคลิกที่ connection point)
   private sourceNode: Container | null = null;
   
+  // Connection Point ที่เริ่มต้นการสร้าง edge
+  private sourceConnectionPoint: Graphics | null = null;
+  
   // Graphics object สำหรับเส้น preview ที่ตามเมาส์
   private previewLine: Graphics | null = null;
   
@@ -52,8 +55,9 @@ class EdgeStateManager {
    * @param sourceNode - Node ที่เป็นจุดเริ่มต้นของ edge
    * @param startPoint - จุดเริ่มต้นบน stage (พิกัด global)
    * @param previewGraphics - Graphics object สำหรับวาดเส้น preview
+   * @param sourceConnectionPoint - Connection Point ที่เป็นจุดเริ่มต้น (optional)
    */
-  startEdgeCreation(sourceNode: Container, startPoint: Point, previewGraphics: Graphics): void {
+  startEdgeCreation(sourceNode: Container, startPoint: Point, previewGraphics: Graphics, sourceConnectionPoint?: Graphics): void {
     // ตรวจสอบว่าไม่ได้อยู่ในขณะสร้าง edge อื่นอยู่
     if (this.currentMode !== EdgeCreationMode.IDLE) {
       console.warn('กำลังสร้าง edge อยู่แล้ว ไม่สามารถเริ่มใหม่ได้');
@@ -63,6 +67,7 @@ class EdgeStateManager {
     // เปลี่ยนสถานะเป็น creating
     this.currentMode = EdgeCreationMode.CREATING;
     this.sourceNode = sourceNode;
+    this.sourceConnectionPoint = sourceConnectionPoint || null;
     this.previewLine = previewGraphics;
     this.previewStartPoint.copyFrom(startPoint);
 
@@ -89,11 +94,11 @@ class EdgeStateManager {
   /**
    * เสร็จสิ้นการสร้าง Edge เมื่อคลิกที่ connection point ของ Node ปลายทาง
    * @param targetNode - Node ปลายทาง
-   * @param edgeGraphics - Graphics object สำหรับ edge ที่สร้างเสร็จ
+   * @param edgeContainer - Container สำหรับ edge ที่สร้างเสร็จ (เปลี่ยนจาก Graphics)
    * @param labelText - ข้อความ label บนเส้น (ค่าเริ่มต้น)
    * @returns EdgeData ของ edge ที่สร้างเสร็จ หรือ null ถ้าไม่สามารถสร้างได้
    */
-  completeEdge(targetNode: Container, edgeGraphics: Graphics, labelText: string = ''): EdgeData | null {
+  completeEdge(targetNode: Container, edgeContainer: Container, labelText: string = ''): EdgeData | null {
     if (this.currentMode !== EdgeCreationMode.CREATING || !this.sourceNode) {
       console.warn('ไม่ได้อยู่ในสถานะสร้าง edge');
       return null;
@@ -111,7 +116,7 @@ class EdgeStateManager {
       id: `edge_${++this.edgeIdCounter}`,
       sourceNode: this.sourceNode,
       targetNode: targetNode,
-      edgeGraphics: edgeGraphics,
+      edgeGraphics: edgeContainer,
       labelText: labelText
     };
 
@@ -148,6 +153,7 @@ class EdgeStateManager {
   private resetState(): void {
     this.currentMode = EdgeCreationMode.IDLE;
     this.sourceNode = null;
+    this.sourceConnectionPoint = null;
     this.previewLine = null;
     this.previewStartPoint.set(0, 0);
   }
@@ -171,6 +177,13 @@ class EdgeStateManager {
    */
   getSourceNode(): Container | null {
     return this.sourceNode;
+  }
+
+  /**
+   * ได้ Connection Point ต้นทางปัจจุบัน (ถ้ากำลังสร้าง edge)
+   */
+  getSourceConnectionPoint(): Graphics | null {
+    return this.sourceConnectionPoint;
   }
 
   /**
@@ -243,6 +256,35 @@ class EdgeStateManager {
    */
   getEdgeCount(): number {
     return this.edges.length;
+  }
+
+  /**
+   * อัปเดต label text ของ Edge
+   * @param edgeId - ID ของ Edge
+   * @param newLabelText - ข้อความ label ใหม่
+   * @returns true ถ้าอัปเดตสำเร็จ, false ถ้าไม่พบ Edge
+   */
+  updateEdgeLabel(edgeId: string, newLabelText: string): boolean {
+    const edgeData = this.edges.find(edge => edge.id === edgeId);
+    if (edgeData) {
+      edgeData.labelText = newLabelText;
+      // อัปเดต metadata ของ edge container ด้วย
+      const edgeContainer = edgeData.edgeGraphics;
+      if ((edgeContainer as any).edgeData) {
+        (edgeContainer as any).edgeData.labelText = newLabelText;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * หา EdgeData จาก Container
+   * @param edgeContainer - Container ของ Edge
+   * @returns EdgeData หรือ null ถ้าไม่พบ
+   */
+  getEdgeDataByContainer(edgeContainer: Container): EdgeData | null {
+    return this.edges.find(edge => edge.edgeGraphics === edgeContainer) || null;
   }
 }
 

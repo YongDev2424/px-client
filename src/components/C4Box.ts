@@ -2,25 +2,31 @@
 
 import { Container, Graphics, Application, FederatedPointerEvent, Circle } from 'pixi.js';
 import { makeDraggable } from '../utils/draggable';
-import { createC4Label } from './C4Label';
+import { createEditableLabel } from './EditableLabel';
 import { fadeIn, fadeOut } from '../utils/animations';
 import { connectionStateManager } from '../utils/connectionState';
 import { edgeStateManager } from '../utils/edgeState';
 import { createPreviewEdge, createEdge } from './Edge';
 
 /**
+ * Type สำหรับระบุตำแหน่งของ Connection Point บน C4Box
+ * ใช้สำหรับกำหนดว่า Connection Point จะอยู่ด้านไหนของกล่อง
+ */
+type ConnectionSide = 'top' | 'right' | 'bottom' | 'left';
+
+/**
  * ฟังก์ชัน Helper: สร้างจุดเชื่อมต่อ (วงกลมเล็กๆ) พร้อม Dynamic Hit Area
  * จุดเชื่อมต่อจะเริ่มต้นในสถานะซ่อนอยู่ และจะแสดงเฉพาะเมื่อ hover หรือ click Node
+ * @param side - ตำแหน่งของ Connection Point บนกล่อง (top, right, bottom, left)
  * @returns - วัตถุ Graphics ของจุดเชื่อมต่อ
  */
-function createConnectionPoint(): Graphics {
+function createConnectionPoint(side: ConnectionSide): Graphics {
   // 1. สร้าง "ผืนผ้าใบ" Graphics ที่ว่างเปล่าขึ้นมาก่อน
   const point = new Graphics();
 
-  // 2. ใช้เมธอดต่างๆ เพื่อ "สั่ง" ให้วาดลงบนผืนผ้าใบนั้น
-  point.fill(0x000000); // สีดำ
+  // 2. ใช้เมธอดต่างๆ เพื่อ "สั่ง" ให้วาดลงบนผืนผ้าใบนั้น (ตาม PixiJS v8 API)
   point.circle(0, 0, 5); // วาดวงกลมรัศมี 5 pixels
-  point.fill(); // สั่งให้เติมสี (สำหรับ v8 ควรเรียกหลังวาด)
+  point.fill(0x000000); // สีดำ (เรียกหลังวาดใน v8)
 
   // 3. ตั้งค่าการโต้ตอบให้กับ "ผืนผ้าใบ" โดยตรง (เฉพาะเมื่อแสดงผล)
   point.eventMode = 'static';
@@ -33,13 +39,85 @@ function createConnectionPoint(): Graphics {
   point.visible = false;
   point.alpha = 0;
 
-  // 6. เพิ่มฟังก์ชัน helper สำหรับขยาย/ย่อ hit area
+  // 6. เก็บข้อมูลด้านที่ Connection Point นี้อยู่
+  (point as any).side = side;
+
+  // 7. เพิ่มฟังก์ชัน helper สำหรับขยาง/ย่อ hit area
   (point as any).setHitAreaRadius = function(radius: number) {
     this.hitArea = new Circle(0, 0, radius);
   };
 
-  // 7. คืนค่า "ผืนผ้าใบ" (Graphics) ที่วาดเสร็จแล้วออกไป
+  // 8. คืนค่า "ผืนผ้าใบ" (Graphics) ที่วาดเสร็จแล้วออกไป
   return point;
+}
+
+/**
+ * สร้างจุดเชื่อมต่อทั้ง 4 ด้านของกล่อง C4 
+ * และกำหนดตำแหน่งที่ถูกต้องสำหรับแต่ละด้าน
+ * @param boxWidth - ความกว้างของกล่อง
+ * @param boxHeight - ความสูงของกล่อง  
+ * @returns - Object ที่มี ConnectionPoint สำหรับทุกด้าน
+ */
+function createAllConnectionPoints(boxWidth: number, boxHeight: number): {
+  top: Graphics;
+  right: Graphics;
+  bottom: Graphics;
+  left: Graphics;
+} {
+  // สร้าง Connection Points สำหรับทุกด้าน
+  const top = createConnectionPoint('top');
+  const right = createConnectionPoint('right');
+  const bottom = createConnectionPoint('bottom');
+  const left = createConnectionPoint('left');
+
+  // กำหนดตำแหน่งสำหรับแต่ละด้าน
+  top.x = boxWidth / 2;    // กึ่งกลางด้านบน
+  top.y = 0;               // ที่ขอบด้านบน
+
+  right.x = boxWidth;      // ขอบด้านขวา
+  right.y = boxHeight / 2; // กึ่งกลางด้านขวา
+
+  bottom.x = boxWidth / 2; // กึ่งกลางด้านล่าง
+  bottom.y = boxHeight;    // ที่ขอบด้านล่าง
+
+  left.x = 0;              // ขอบด้านซ้าย
+  left.y = boxHeight / 2;  // กึ่งกลางด้านซ้าย
+
+  return { top, right, bottom, left };
+}
+
+/**
+ * Setup Event Handlers สำหรับ Connection Point เดียว
+ * เพื่อให้สามารถใช้ซ้ำกับ Connection Point ทุกจุดได้
+ * @param connectionPoint - จุดเชื่อมต่อที่ต้องการติดตั้ง events
+ * @param boxContainer - Container ของ Node ที่ connection point นี้สังกัด
+ */
+function setupConnectionPointEvents(connectionPoint: Graphics, boxContainer: Container): void {
+  // เมื่อ click ที่ Connection Point - เริ่มหรือเสร็จสิ้นการสร้าง Edge
+  connectionPoint.on('pointerdown', (event: FederatedPointerEvent) => {
+    event.stopPropagation(); // หยุดไม่ให้ไป trigger Container events
+    
+    // ถ้ากำลังสร้าง edge อยู่แล้ว ให้เสร็จสิ้น edge ที่ connection point นี้
+    if (edgeStateManager.isCreatingEdge()) {
+      completeEdgeCreation(boxContainer, connectionPoint, event);
+    } else {
+      // เริ่มสร้าง edge ใหม่จาก connection point นี้
+      startEdgeCreation(boxContainer, connectionPoint, event);
+    }
+  });
+  
+  // เพิ่ม visual feedback เมื่อ hover บน connection point
+  connectionPoint.on('pointerover', (event: FederatedPointerEvent) => {
+    event.stopPropagation();
+    // เปลี่ยนสี connection point เมื่อ hover
+    connectionPoint.tint = 0x00FF00; // สีเขียว
+  });
+  
+  connectionPoint.on('pointerout', (event: FederatedPointerEvent) => {
+    event.stopPropagation();
+    // เปลี่ยนกลับเป็นสีเดิม
+    connectionPoint.tint = 0xFFFFFF; // สีขาว
+  });
 }
 
 /**
@@ -58,28 +136,63 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
     .fill(boxColor)
     .rect(0, 0, 200, 100)
     .fill();
-  const boxLabel = createC4Label(labelText, 24, 0x000000);
-  const connectionPoint = createConnectionPoint();
+  // สร้าง Label ที่แก้ไขได้สำหรับ Node
+  const boxLabel = createEditableLabel({
+    text: labelText,
+    fontSize: 18,
+    textColor: 0xFFFFFF, // ใช้สีขาวเพื่อให้เห็นชัดบนพื้นหลังสี
+    hasBackground: false, // Node label ไม่มีพื้นหลัง
+    onTextChange: (newText, oldText) => {
+      console.log(`Node label เปลี่ยนจาก "${oldText}" เป็น "${newText}"`);
+      // อัปเดต metadata ของ Node
+      (boxContainer as any).nodeData = {
+        ...(boxContainer as any).nodeData,
+        labelText: newText
+      };
+    },
+    onEditStart: () => {
+      console.log('เริ่มแก้ไข Node label');
+    },
+    onEditEnd: () => {
+      console.log('จบการแก้ไข Node label');
+    }
+  });
+  const connectionPoints = createAllConnectionPoints(200, 100);
 
   // 2. นำส่วนประกอบทั้งหมดมาใส่ใน Container (ประกอบร่าง)
   boxContainer.addChild(boxGraphics);
   boxContainer.addChild(boxLabel);
-  boxContainer.addChild(connectionPoint);
+  // เพิ่ม ConnectionPoint ทั้งหมดลงใน Container
+  boxContainer.addChild(connectionPoints.top);
+  boxContainer.addChild(connectionPoints.right);
+  boxContainer.addChild(connectionPoints.bottom);
+  boxContainer.addChild(connectionPoints.left);
 
   // 3. จัดตำแหน่งส่วนประกอบย่อย โดยอิงกับขนาดของ Graphics ที่คงที่
-  boxLabel.x = (boxGraphics.width - boxLabel.width) / 2;
-  boxLabel.y = (boxGraphics.height - boxLabel.height) / 2;
+  // EditableLabel ใช้ pivot แล้ว ดังนั้นแค่ต้องวางไว้กึ่งกลาง box
+  boxLabel.x = boxGraphics.width / 2;
+  boxLabel.y = boxGraphics.height / 2;
   
-  connectionPoint.x = boxGraphics.width;
-  connectionPoint.y = boxGraphics.height / 2;
+  // ConnectionPoint ถูกจัดตำแหน่งแล้วใน createAllConnectionPoints()
 
   // 4. กำหนดตำแหน่งเริ่มต้นของ Container ทั้งหมดบนฉาก
-  boxContainer.x = app.screen.width / 2;
-  boxContainer.y = app.screen.height / 2;
+  // ใช้ random offset เพื่อป้องกันการซ้อนทับกัน
+  const offsetX = (Math.random() - 0.5) * 400; // -200 ถึง +200 pixels
+  const offsetY = (Math.random() - 0.5) * 300; // -150 ถึง +150 pixels
+  boxContainer.x = (app.screen.width / 2) + offsetX;
+  boxContainer.y = (app.screen.height / 2) + offsetY;
 
-  // 5. เก็บ reference ของ boxGraphics และ connectionPoint ไว้ใน Container เพื่อใช้ใน events
+  // 5. เก็บ reference ของ components และ metadata ไว้ใน Container เพื่อใช้ใน events
   (boxContainer as any).boxGraphics = boxGraphics;
-  (boxContainer as any).connectionPoint = connectionPoint;
+  (boxContainer as any).connectionPoints = connectionPoints;
+  (boxContainer as any).nodeLabel = boxLabel;
+  
+  // เก็บ metadata ของ Node
+  (boxContainer as any).nodeData = {
+    labelText: labelText,
+    boxColor: boxColor,
+    nodeType: 'c4box' // ระบุประเภทของ Node
+  };
 
   // 6. เพิ่ม Event Handlers สำหรับการจัดการ hover และ click effects
   
@@ -87,9 +200,12 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
   boxContainer.on('pointerover', (event: FederatedPointerEvent) => {
     event.stopPropagation();
     
-    // ปกติ: แสดง connection points เมื่อ hover
+    // ปกติ: แสดง connection points ทั้งหมดเมื่อ hover
     connectionStateManager.setHoveredNode(boxContainer);
-    fadeIn(connectionPoint, 150);
+    fadeIn(connectionPoints.top, 150);
+    fadeIn(connectionPoints.right, 150);
+    fadeIn(connectionPoints.bottom, 150);
+    fadeIn(connectionPoints.left, 150);
   });
   
   // เมื่อ pointer ออกจาก Container
@@ -100,7 +216,10 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
     connectionStateManager.setHoveredNode(null);
     
     if (!connectionStateManager.isPinned(boxContainer)) {
-      fadeOut(connectionPoint, 150);
+      fadeOut(connectionPoints.top, 150);
+      fadeOut(connectionPoints.right, 150);
+      fadeOut(connectionPoints.bottom, 150);
+      fadeOut(connectionPoints.left, 150);
     }
   });
   
@@ -112,39 +231,23 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
     const isPinned = connectionStateManager.togglePin(boxContainer);
     
     if (isPinned) {
-      fadeIn(connectionPoint, 150);
+      fadeIn(connectionPoints.top, 150);
+      fadeIn(connectionPoints.right, 150);
+      fadeIn(connectionPoints.bottom, 150);
+      fadeIn(connectionPoints.left, 150);
     } else if (!connectionStateManager.shouldShowConnections(boxContainer)) {
-      fadeOut(connectionPoint, 150);
+      fadeOut(connectionPoints.top, 150);
+      fadeOut(connectionPoints.right, 150);
+      fadeOut(connectionPoints.bottom, 150);
+      fadeOut(connectionPoints.left, 150);
     }
   });
   
-  // เพิ่ม Event Handlers สำหรับ Connection Point (แยกจาก Container)
-  
-  // เมื่อ click ที่ Connection Point - เริ่มหรือเสร็จสิ้นการสร้าง Edge
-  connectionPoint.on('pointerdown', (event: FederatedPointerEvent) => {
-    event.stopPropagation(); // หยุดไม่ให้ไป trigger Container events
-    
-    // ถ้ากำลังสร้าง edge อยู่แล้ว ให้เสร็จสิ้น edge ที่ connection point นี้
-    if (edgeStateManager.isCreatingEdge()) {
-      completeEdgeCreation(boxContainer, event);
-    } else {
-      // เริ่มสร้าง edge ใหม่จาก connection point นี้
-      startEdgeCreation(boxContainer, event);
-    }
-  });
-  
-  // เพิ่ม visual feedback เมื่อ hover บน connection point
-  connectionPoint.on('pointerover', (event: FederatedPointerEvent) => {
-    event.stopPropagation();
-    // เปลี่ยนสี connection point เมื่อ hover
-    connectionPoint.tint = 0x00FF00; // สีเขียว
-  });
-  
-  connectionPoint.on('pointerout', (event: FederatedPointerEvent) => {
-    event.stopPropagation();
-    // เปลี่ยนกลับเป็นสีเดิม
-    connectionPoint.tint = 0xFFFFFF; // สีขาว
-  });
+  // เพิ่ม Event Handlers สำหรับ Connection Point ทั้งหมด (แยกจาก Container)
+  setupConnectionPointEvents(connectionPoints.top, boxContainer);
+  setupConnectionPointEvents(connectionPoints.right, boxContainer);
+  setupConnectionPointEvents(connectionPoints.bottom, boxContainer);
+  setupConnectionPointEvents(connectionPoints.left, boxContainer);
 
 
   // 7. ทำให้ Container ทั้งหมดสามารถลากได้ (เฉพาะเมื่อคลิกที่ Node area)
@@ -157,10 +260,11 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
 /**
  * เริ่มต้นการสร้าง Edge จาก Connection Point
  * @param sourceNode - Node ที่เป็นจุดเริ่มต้น
+ * @param sourceConnectionPoint - Connection Point ที่เป็นจุดเริ่มต้น
  * @param event - Pointer event จากการคลิก
  */
-function startEdgeCreation(sourceNode: Container, event: FederatedPointerEvent): void {
-  console.log('เริ่มสร้าง Edge จาก Node:', sourceNode);
+function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphics, event: FederatedPointerEvent): void {
+  console.log('เริ่มสร้าง Edge จาก Node:', sourceNode, 'ด้าน:', (sourceConnectionPoint as any).side);
   
   // คำนวณจุดเริ่มต้น (พิกัด global ของ connection point)
   const startPoint = event.global.clone();
@@ -177,17 +281,18 @@ function startEdgeCreation(sourceNode: Container, event: FederatedPointerEvent):
     currentParent.addChild(previewLine);
   }
   
-  // เริ่มต้นการสร้าง edge
-  edgeStateManager.startEdgeCreation(sourceNode, startPoint, previewLine);
+  // เริ่มต้นการสร้าง edge พร้อมส่ง source connection point
+  edgeStateManager.startEdgeCreation(sourceNode, startPoint, previewLine, sourceConnectionPoint);
 }
 
 /**
  * เสร็จสิ้นการสร้าง Edge เมื่อคลิกที่ Connection Point ของ Node ปลายทาง
  * @param targetNode - Node ที่เป็นจุดปลายทาง
+ * @param targetConnectionPoint - Connection Point ที่เป็นจุดปลายทาง
  * @param event - Pointer event จากการคลิก
  */
-function completeEdgeCreation(targetNode: Container, _event: FederatedPointerEvent): void {
-  console.log('เสร็จสิ้นการสร้าง Edge ที่ Node:', targetNode);
+function completeEdgeCreation(targetNode: Container, targetConnectionPoint: Graphics, _event: FederatedPointerEvent): void {
+  console.log('เสร็จสิ้นการสร้าง Edge ที่ Node:', targetNode, 'ด้าน:', (targetConnectionPoint as any).side);
   
   // ได้ source node จาก edge state manager
   const sourceNode = edgeStateManager.getSourceNode();
@@ -209,8 +314,13 @@ function completeEdgeCreation(targetNode: Container, _event: FederatedPointerEve
     previewLine.parent.removeChild(previewLine);
   }
   
-  // สร้าง edge จริงด้วย createEdge()
-  const edgeContainer = createEdge(sourceNode, targetNode);
+  // ได้ข้อมูล side จาก connection points
+  const sourceConnectionPoint = edgeStateManager.getSourceConnectionPoint();
+  const sourceSide = sourceConnectionPoint ? (sourceConnectionPoint as any).side : 'right';
+  const targetSide = (targetConnectionPoint as any).side;
+  
+  // สร้าง edge จริงด้วย createEdge() พร้อม side information
+  const edgeContainer = createEdge(sourceNode, targetNode, 'relationship', 0x000000, 2, true, sourceSide, targetSide);
   
   // หา stage เพื่อเพิ่ม edge ลงไป
   let currentParent = targetNode.parent;
