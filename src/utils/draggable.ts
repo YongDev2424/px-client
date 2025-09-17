@@ -1,6 +1,8 @@
 // src/utils/draggable.ts
 
 import { Application, Container, FederatedPointerEvent, Point } from 'pixi.js';
+import { edgeStateManager } from './edgeState';
+import { updateEdgePosition, isEdgeConnectedToNode } from '../components/Edge';
 
 /**
  * ฟังก์ชันนี้จะรับวัตถุ (target) เข้ามา แล้วเพิ่มความสามารถในการลากและวางให้
@@ -36,11 +38,19 @@ export function makeDraggable(target: Container, app: Application): void {
     });
 
     // เมื่อ "ขยับ" เมาส์ (เราดักฟังที่ stage ทั้งหมด)
-    app.stage.on('pointermove', (event: FederatedPointerEvent) => {
+    app.stage.on('globalpointermove', (event: FederatedPointerEvent) => {
         if (isDragging) {
             // อัปเดตตำแหน่งของวัตถุโดยใช้ระยะห่างที่จำไว้
             target.x = event.global.x + dragOffset.x;
             target.y = event.global.y + dragOffset.y;
+            
+            // อัปเดตตำแหน่งของ edges ที่เชื่อมต่อกับ node นี้
+            const allEdges = edgeStateManager.getAllEdges();
+            allEdges.forEach(edgeData => {
+                if (isEdgeConnectedToNode(edgeData.edgeGraphics, target)) {
+                    updateEdgePosition(edgeData.edgeGraphics);
+                }
+            });
         }
     });
 }
