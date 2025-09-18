@@ -46,8 +46,14 @@ export function makeDraggable(target: Container, app: Application): void {
             
             // อัปเดตตำแหน่งของ edges ที่เชื่อมต่อกับ node นี้
             const allEdges = edgeStateManager.getAllEdges();
+            console.log('🚀 Node เคลื่อนที่, ตรวจสอบ', allEdges.length, 'edges');
+            
             allEdges.forEach(edgeData => {
-                if (isEdgeConnectedToNode(edgeData.edgeGraphics, target)) {
+                const isConnected = isEdgeConnectedToNode(edgeData.edgeGraphics, target);
+                console.log('🔗 Edge', edgeData.id, 'เชื่อมต่อกับ Node นี้:', isConnected);
+                
+                if (isConnected) {
+                    console.log('⚡ กำลังอัปเดต Edge:', edgeData.id);
                     updateEdgePosition(edgeData.edgeGraphics);
                 }
             });

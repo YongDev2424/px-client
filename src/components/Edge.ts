@@ -44,23 +44,36 @@ function getConnectionPointPosition(node: Container, preferredSide?: string): Po
     const bounds = node.getBounds();
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
+    console.warn('⚠️ ไม่พบ Connection Points ใน Node, ใช้จุดกึ่งกลาง');
     return new Point(centerX, centerY);
   }
   
   let selectedConnectionPoint = connectionPoints[0]; // default เป็นตัวแรก
+  console.log('🎯 Connection Points ที่พบ:', connectionPoints.length, 'จุด');
+  console.log('🔍 กำลังหา preferredSide:', preferredSide);
   
   // ถ้าระบุ side ที่ต้องการ ให้หา connection point ที่ตรงกัน
   if (preferredSide) {
+    console.log('📋 Connection Points ทั้งหมด:');
+    connectionPoints.forEach((point, index) => {
+      console.log(`   [${index}] side: ${(point as any).side || 'undefined'}`);
+    });
+    
     const matchingPoint = connectionPoints.find(point => 
       (point as any).side === preferredSide
     );
+    
     if (matchingPoint) {
+      console.log('✅ พบ Connection Point ที่ตรงกับ side:', preferredSide);
       selectedConnectionPoint = matchingPoint;
+    } else {
+      console.warn('❌ ไม่พบ Connection Point สำหรับ side:', preferredSide, 'ใช้ตัวแรก');
     }
   }
   
-  // ใช้ตำแหน่งจริงของ connection point ที่เลือก
-  const globalPos = node.toGlobal(new Point(selectedConnectionPoint.x, selectedConnectionPoint.y));
+  // ใช้ตำแหน่งจริงของ connection point ที่เลือก (PixiJS v8 API)
+  const globalPos = selectedConnectionPoint.getGlobalPosition();
+  console.log('🔍 Connection Point global position:', globalPos, 'side:', (selectedConnectionPoint as any).side);
   return globalPos;
 }
 
@@ -131,6 +144,10 @@ export function createEdge(
   // คำนวณตำแหน่งจุดเชื่อมต่อของทั้งสอง Node
   const startPoint = getConnectionPointPosition(sourceNode, sourceSide);
   const endPoint = getConnectionPointPosition(targetNode, targetSide);
+  
+  console.log('✅ สร้าง Edge:');
+  console.log('📍 Source:', startPoint, 'side:', sourceSide);
+  console.log('📍 Target:', endPoint, 'side:', targetSide);
   
   // คำนวณจุดกึ่งกลางและช่องว่างสำหรับ label
   const midPoint = getMidPoint(startPoint, endPoint);
@@ -211,7 +228,9 @@ export function createEdge(
     startPoint: startPoint.clone(),
     endPoint: endPoint.clone(),
     labelText: labelText,
-    labelContainer: labelContainer
+    labelContainer: labelContainer,
+    sourceSide: sourceSide,    // เก็บ side ของ source
+    targetSide: targetSide     // เก็บ side ของ target
   };
   
   return edgeContainer;
@@ -265,9 +284,16 @@ export function updateEdgePosition(edgeContainer: Container): void {
   
   const { sourceNode, targetNode, labelContainer } = edgeData;
   
-  // คำนวณตำแหน่งใหม่
-  const newStartPoint = getConnectionPointPosition(sourceNode);
-  const newEndPoint = getConnectionPointPosition(targetNode);
+  // คำนวณตำแหน่งใหม่ โดยใช้ side ที่บันทึกไว้
+  const sourceSide = (edgeContainer as any).edgeData?.sourceSide;
+  const targetSide = (edgeContainer as any).edgeData?.targetSide;
+  
+  const newStartPoint = getConnectionPointPosition(sourceNode, sourceSide);
+  const newEndPoint = getConnectionPointPosition(targetNode, targetSide);
+  
+  console.log('🔄 อัปเดต Edge position:');
+  console.log('📍 Source Side:', sourceSide, '→', newStartPoint);
+  console.log('📍 Target Side:', targetSide, '→', newEndPoint);
   
   // ล้างและวาดใหม่
   edgeContainer.removeChildren();
@@ -363,8 +389,18 @@ export function getEdgeAngle(edgeContainer: Container): number {
 export function isEdgeConnectedToNode(edgeContainer: Container, node: Container): boolean {
   const edgeData = (edgeContainer as any).edgeData;
   if (!edgeData) {
+    console.warn('❌ ไม่พบ edgeData ใน container');
     return false;
   }
   
-  return edgeData.sourceNode === node || edgeData.targetNode === node;
+  const isSource = edgeData.sourceNode === node;
+  const isTarget = edgeData.targetNode === node;
+  const isConnected = isSource || isTarget;
+  
+  console.log('🔍 ตรวจสอบการเชื่อมต่อ:');
+  console.log('   - edgeData.sourceNode === node:', isSource);
+  console.log('   - edgeData.targetNode === node:', isTarget);
+  console.log('   - ผลลัพธ์:', isConnected);
+  
+  return isConnected;
 }

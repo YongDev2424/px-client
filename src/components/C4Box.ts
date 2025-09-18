@@ -266,8 +266,10 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
 function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphics, event: FederatedPointerEvent): void {
   console.log('เริ่มสร้าง Edge จาก Node:', sourceNode, 'ด้าน:', (sourceConnectionPoint as any).side);
   
-  // คำนวณจุดเริ่มต้น (พิกัด global ของ connection point)
-  const startPoint = event.global.clone();
+  // คำนวณจุดเริ่มต้น (พิกัด global ของ connection point จริง)
+  const startPoint = sourceConnectionPoint.getGlobalPosition();
+  console.log('🎯 ตำแหน่งจริงของ Connection Point:', startPoint);
+  console.log('🖱️ ตำแหน่งเมาส์:', event.global);
   
   // สร้าง preview line
   const previewLine = createPreviewEdge(startPoint, startPoint);
@@ -293,6 +295,10 @@ function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphic
  */
 function completeEdgeCreation(targetNode: Container, targetConnectionPoint: Graphics, _event: FederatedPointerEvent): void {
   console.log('เสร็จสิ้นการสร้าง Edge ที่ Node:', targetNode, 'ด้าน:', (targetConnectionPoint as any).side);
+  
+  // ได้ตำแหน่งจริงของ Target Connection Point
+  const targetPoint = targetConnectionPoint.getGlobalPosition();
+  console.log('🎯 ตำแหน่งจริงของ Target Connection Point:', targetPoint);
   
   // ได้ source node จาก edge state manager
   const sourceNode = edgeStateManager.getSourceNode();
