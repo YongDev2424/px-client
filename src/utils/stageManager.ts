@@ -2,6 +2,7 @@
 
 import { Application, FederatedPointerEvent, Point } from 'pixi.js';
 import { edgeStateManager } from './edgeState';
+import { selectionManager } from './selectionManager';
 
 /**
  * ระบบจัดการ Stage Events สำหรับประสานงานระหว่าง
@@ -86,8 +87,9 @@ class StageManager {
     }
 
     // ถ้าไม่ได้กำลังสร้าง edge และคลิกพื้นที่ว่าง
-    // อาจต้องการเคลียร์ selection หรือทำอย่างอื่น
-    console.log('คลิกบนพื้นที่ว่างของ stage');
+    // ให้ยกเลิกการ select ทุก elements
+    console.log('คลิกบนพื้นที่ว่างของ stage - ยกเลิกการ select ทั้งหมด');
+    selectionManager.deselectAll();
   }
 
   /**

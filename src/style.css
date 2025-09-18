@@ -1,10 +1,729 @@
 @import "tailwindcss";
+
+/* ===== CSS Custom Properties - Design System ===== */
+:root {
+  /* === 8px Grid System === */
+  --space-1: 8px;     /* xs */
+  --space-2: 16px;    /* sm */
+  --space-3: 24px;    /* md */
+  --space-4: 32px;    /* lg */
+  --space-5: 40px;    /* xl */
+  --space-6: 48px;    /* 2xl */
+
+  /* === Dark Theme Color Palette === */
+  /* Primary Colors */
+  --bg-primary: #1e1e1e;      /* Main background */
+  --bg-secondary: #252526;     /* Panel backgrounds */
+  --bg-tertiary: #2d2d30;      /* Toolbar background */
+  --bg-quaternary: #3e3e42;    /* Elevated surfaces */
+
+  /* Text Colors (WCAG AA Compliant) */
+  --text-primary: #cccccc;     /* Primary text (4.5:1 contrast) */
+  --text-secondary: #969696;   /* Secondary text */
+  --text-accent: #4fc3f7;      /* Links and accents */
+  --text-muted: #6a6a6a;       /* Muted text */
+
+  /* C4 Level Colors */
+  --c4-level1: #0B61A4;        /* Person/Actor - Blue */
+  --c4-level2: #2E7D32;        /* System - Green */
+  --c4-level3: #F57C00;        /* Container - Orange */
+  --c4-level4: #616161;        /* Component - Gray */
+
+  /* UI Element Colors */
+  --border-color: #3e3e42;     /* Borders and dividers */
+  --border-light: #4a4a4a;     /* Lighter borders */
+  --hover-color: #094771;      /* Hover states */
+  --selected-color: #0e639c;   /* Selected states */
+  --focus-color: #4fc3f7;      /* Focus indicators */
+
+  /* Layout Dimensions */
+  --left-panel-width: 20%;
+  --left-panel-min-width: 200px;
+  --left-panel-max-width: 400px;
+  --toolbar-height: 5%;
+  --toolbar-min-height: 48px;
+  --resize-handle-width: 4px;
+
+  /* Animation */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 500ms ease;
+
+  /* Typography */
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+
+  /* Grid */
+  --grid-size: 20px;
+  --grid-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== Base Styles ===== */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 0;
-  overflow: hidden; /* ซ่อน scrollbar ทั้งหมด */
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  overflow: hidden;
 }
 
+/* ===== Main Layout Grid ===== */
+.app-layout {
+  display: grid;
+  grid-template-columns: var(--left-panel-width) 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  width: 100vw;
+  transition: grid-template-columns var(--transition-normal);
+}
+
+.app-layout.panel-collapsed {
+  grid-template-columns: 0 1fr;
+}
+
+/* ===== Left Panel ===== */
+.left-panel {
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--left-panel-min-width);
+  max-width: var(--left-panel-max-width);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-normal);
+}
+
+.app-layout.panel-collapsed .left-panel {
+  transform: translateX(-100%);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.toggle-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: var(--space-1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--focus-color);
+  color: var(--text-primary);
+}
+
+.toggle-btn:focus {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.toggle-icon {
+  font-size: var(--text-lg);
+  font-weight: bold;
+  transition: transform var(--transition-fast);
+}
+
+.app-layout.panel-collapsed .toggle-icon {
+  transform: rotate(180deg);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.component-tree {
+  min-height: 100%;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-4);
+  color: var(--text-muted);
+}
+
+.empty-state p {
+  margin: 0 0 var(--space-1) 0;
+}
+
+.empty-state-hint {
+  font-size: var(--text-sm);
+}
+
+/* ===== Resize Handle ===== */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--resize-handle-width);
+  height: 100%;
+  background-color: transparent;
+  cursor: col-resize;
+  transition: background-color var(--transition-fast);
+}
+
+.resize-handle:hover {
+  background-color: var(--focus-color);
+}
+
+.resize-handle:active {
+  background-color: var(--selected-color);
+}
+
+/* ===== Expand Button (when panel is collapsed) ===== */
+.expand-btn {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 1000;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-1);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 24px;
+  height: 48px;
+  display: none !important; /* Force hide by default */
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Show expand button when panel is collapsed */
+.app-layout.panel-collapsed .expand-btn {
+  display: flex !important; /* Force show when collapsed */
+}
+
+.expand-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--focus-color);
+  color: var(--text-primary);
+  transform: translateY(-50%) translateX(2px);
+}
+
+.expand-btn:active {
+  transform: translateY(-50%) translateX(1px);
+  background-color: var(--selected-color);
+}
+
+.expand-btn:focus {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.expand-icon {
+  font-size: var(--text-lg);
+  font-weight: bold;
+}
+
+/* ===== Main Content Area ===== */
+.main-content {
+  display: grid;
+  grid-template-rows: var(--toolbar-height) 1fr;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== Toolbar ===== */
+.toolbar {
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  min-height: var(--toolbar-min-height);
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-height: 32px;
+}
+
+.toolbar-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--focus-color);
+  transform: translateY(-1px);
+}
+
+.toolbar-btn:active {
+  transform: translateY(0);
+}
+
+.toolbar-btn:focus {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* C4 Level Specific Button Colors */
+.toolbar-btn-primary {
+  border-color: var(--c4-level1);
+}
+
+.toolbar-btn-primary:hover {
+  background-color: var(--c4-level1);
+}
+
+.toolbar-btn-secondary {
+  border-color: var(--c4-level2);
+}
+
+.toolbar-btn-secondary:hover {
+  background-color: var(--c4-level2);
+}
+
+.toolbar-btn-tertiary {
+  border-color: var(--c4-level3);
+}
+
+.toolbar-btn-tertiary:hover {
+  background-color: var(--c4-level3);
+}
+
+.toolbar-btn-quaternary {
+  border-color: var(--c4-level4);
+}
+
+.toolbar-btn-quaternary:hover {
+  background-color: var(--c4-level4);
+}
+
+.btn-icon {
+  font-size: var(--text-base);
+}
+
+.btn-label {
+  font-weight: 500;
+}
+
+/* ===== Canvas Container ===== */
+.canvas-container {
+  position: relative;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+.canvas-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.3;
+}
+
+/* PixiJS Canvas Positioning */
 canvas {
-  display: block; /* แก้ปัญหาขอบขาวด้านล่าง canvas */
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 1024px) {
+  :root {
+    --left-panel-width: 25%;
+    --toolbar-height: 6%;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-columns: 0 1fr;
+  }
+  
+  .left-panel {
+    transform: translateX(-100%);
+  }
+  
+  .app-layout.panel-visible .left-panel {
+    transform: translateX(0);
+    position: absolute;
+    z-index: 1000;
+    height: 100vh;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  :root {
+    --toolbar-height: 8%;
+  }
+  
+  .toolbar-btn .btn-label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    padding: 0 var(--space-1);
+    gap: var(--space-1);
+  }
+  
+  .toolbar-section {
+    gap: 4px;
+  }
+  
+  .toolbar-btn {
+    padding: var(--space-1);
+    min-width: 32px;
+  }
+}
+
+/* ===== Accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #ffffff;
+    --text-primary: #ffffff;
+    --bg-primary: #000000;
+    --bg-secondary: #1a1a1a;
+  }
+}
+
+/* ===== Focus Management ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus indicators for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* ===== Component Tree Styles ===== */
+
+/* Component Tree Container */
+.component-tree {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+/* Tree Node Styles */
+.tree-node {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  margin: 1px 0;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tree-node:hover {
+  background-color: var(--hover-color);
+}
+
+.tree-node.focused {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -2px;
+}
+
+.tree-node.selected {
+  background-color: var(--selected-color);
+  color: #ffffff;
+}
+
+.tree-node.selected:hover {
+  background-color: var(--selected-color);
+}
+
+/* Tree Node Content */
+.tree-node-content {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-1);
+  min-height: 28px;
+  gap: var(--space-1);
+}
+
+/* Expand Button */
+.tree-node-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 1;
+  transition: background-color var(--transition-fast);
+}
+
+.tree-node-expand:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tree-node-expand:focus {
+  outline: 1px solid var(--focus-color);
+  outline-offset: 1px;
+}
+
+.expand-icon {
+  display: block;
+  transition: transform var(--transition-fast);
+}
+
+/* Component Icon */
+.tree-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.component-icon {
+  display: block;
+}
+
+/* Component Label */
+.tree-node-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  min-width: 0;
+}
+
+.tree-node.selected .tree-node-label {
+  font-weight: 500;
+}
+
+/* Input for Renaming */
+.tree-node-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--focus-color);
+  border-radius: 2px;
+  color: var(--text-primary);
+  font-size: inherit;
+  font-family: inherit;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.tree-node-input:focus {
+  border-color: var(--focus-color);
+  box-shadow: 0 0 0 1px var(--focus-color);
+}
+
+/* Component Type Specific Styles */
+.tree-node.level1 {
+  border-left: 3px solid var(--c4-level1);
+}
+
+.tree-node.level2 {
+  border-left: 3px solid var(--c4-level2);
+}
+
+.tree-node.level3 {
+  border-left: 3px solid var(--c4-level3);
+}
+
+.tree-node.level4 {
+  border-left: 3px solid var(--c4-level4);
+}
+
+/* Connected Status Indicator */
+.tree-node.connected::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--focus-color);
+}
+
+/* Empty State */
+.tree-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-2);
+  text-align: center;
+  color: var(--text-secondary);
+  height: 200px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-2);
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+  color: var(--text-primary);
+}
+
+.empty-description {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* Scrollbar Styling */
+.component-tree::-webkit-scrollbar {
+  width: 8px;
+}
+
+.component-tree::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.component-tree::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.component-tree::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Accessibility Improvements */
+@media (prefers-reduced-motion: reduce) {
+  .tree-node,
+  .tree-node-expand,
+  .expand-icon {
+    transition: none;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .tree-node {
+    border: 1px solid transparent;
+  }
+  
+  .tree-node:hover,
+  .tree-node.selected {
+    border-color: currentColor;
+  }
+  
+  .tree-node.focused {
+    outline: 2px solid currentColor;
+  }
+}
+
+/* Focus Visible Support */
+.tree-node:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -2px;
+}
+
+.tree-node-expand:focus-visible {
+  outline: 1px solid var(--focus-color);
+  outline-offset: 1px;
+}
+
+/* Responsive Adjustments for Tree */
+@media (max-width: 768px) {
+  .tree-node-content {
+    padding: var(--space-1) var(--space-1);
+    min-height: 32px; /* Larger touch targets */
+  }
+  
+  .tree-node-expand {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .tree-node-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 14px;
+  }
 }

@@ -7,15 +7,65 @@
     <title>PixiJS C4 Editor</title>
   </head>
   <body>
+    <div id="app-container" class="app-layout">
+      <!-- Left Panel -->
+      <aside id="left-panel" class="left-panel">
+        <div class="panel-header">
+          <h3 class="panel-title">Components</h3>
+          <button id="toggle-panel-btn" class="toggle-btn" aria-label="Toggle left panel">
+            <span class="toggle-icon">‹</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <div id="component-tree" class="component-tree">
+            <div class="empty-state">
+              <p>No components yet</p>
+              <p class="empty-state-hint">Add components using the toolbar</p>
+            </div>
+          </div>
+        </div>
+        <div id="resize-handle" class="resize-handle" aria-label="Resize panel"></div>
+      </aside>
+
+      <!-- Expand Button (shown when panel is collapsed) -->
+      <button id="expand-panel-btn" class="expand-btn" aria-label="Expand left panel">
+        <span class="expand-icon">›</span>
+      </button>
+
+      <!-- Main Content Area -->
+      <main id="main-content" class="main-content">
+        <!-- Top Toolbar -->
+        <header id="toolbar" class="toolbar">
+          <div class="toolbar-section">
+            <button id="add-person-btn" class="toolbar-btn toolbar-btn-primary" title="Add Person (C4 Level 1)">
+              <span class="btn-icon">👤</span>
+              <span class="btn-label">Person</span>
+            </button>
+            <button id="add-system-btn" class="toolbar-btn toolbar-btn-secondary" title="Add System (C4 Level 2)">
+              <span class="btn-icon">🏢</span>
+              <span class="btn-label">System</span>
+            </button>
+          </div>
+          <div class="toolbar-section">
+            <button id="add-container-btn" class="toolbar-btn toolbar-btn-tertiary" title="Add Container (C4 Level 3)">
+              <span class="btn-icon">📦</span>
+              <span class="btn-label">Container</span>
+            </button>
+            <button id="add-component-btn" class="toolbar-btn toolbar-btn-quaternary" title="Add Component (C4 Level 4)">
+              <span class="btn-icon">⚙️</span>
+              <span class="btn-label">Component</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Canvas Area -->
+        <section id="canvas-container" class="canvas-container">
+          <div id="canvas-grid" class="canvas-grid"></div>
+          <!-- PixiJS canvas will be inserted here -->
+        </section>
+      </main>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
-    <div id="toolbar" class="absolute top-4 left-4 p-2 bg-slate-800 rounded-lg shadow-lg flex flex-col gap-2">
-    <button id="add-person-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-        Add Person
-    </button>
-    <button id="add-system-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-        Add System
-    </button>
-</div>
   </body>
 </html>

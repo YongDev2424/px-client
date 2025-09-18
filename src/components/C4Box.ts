@@ -7,6 +7,7 @@ import { fadeIn, fadeOut } from '../utils/animations';
 import { connectionStateManager } from '../utils/connectionState';
 import { edgeStateManager } from '../utils/edgeState';
 import { createPreviewEdge, createEdge } from './Edge';
+import { makeSelectable, selectionManager } from '../utils/selectionManager';
 
 /**
  * Type สำหรับระบุตำแหน่งของ Connection Point บน C4Box
@@ -227,7 +228,10 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
   boxContainer.on('pointerdown', (event: FederatedPointerEvent) => {
     event.stopPropagation();
     
-    // ปกติ: คลิกบน Node area = pin/unpin connection points
+    // 1. Toggle Selection ของ Node
+    selectionManager.toggleSelection(selectableElement);
+    
+    // 2. ปกติ: คลิกบน Node area = pin/unpin connection points
     const isPinned = connectionStateManager.togglePin(boxContainer);
     
     if (isPinned) {
@@ -253,7 +257,34 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
   // 7. ทำให้ Container ทั้งหมดสามารถลากได้ (เฉพาะเมื่อคลิกที่ Node area)
   makeDraggable(boxContainer, app);
 
-  // 8. คืนค่า Container ที่สมบูรณ์แล้วออกไป
+  // 8. เพิ่ม Selection Capability ให้กับ Node
+  const selectableElement = makeSelectable(boxContainer, {
+    onSelect: () => {
+      console.log('🎯 Selected C4Box:', labelText);
+      // เพิ่ม visual feedback เมื่อถูก select (ถ้าต้องการ)
+      (boxContainer as any).nodeData.isSelected = true;
+      
+      // Dispatch event สำหรับ ComponentTree sync
+      const event = new CustomEvent('pixi-selection-change', {
+        detail: { container: boxContainer, action: 'select' }
+      });
+      window.dispatchEvent(event);
+    },
+    onDeselect: () => {
+      console.log('⭕ Deselected C4Box:', labelText);
+      // ลบ visual feedback เมื่อถูก deselect
+      (boxContainer as any).nodeData.isSelected = false;
+      
+      // Dispatch event สำหรับ ComponentTree sync
+      const event = new CustomEvent('pixi-selection-change', {
+        detail: { container: boxContainer, action: 'deselect' }
+      });
+      window.dispatchEvent(event);
+    },
+    selectOnClick: false // ปิดการ auto-select เมื่อคลิก เพราะมี logic ซับซ้อนอยู่แล้ว
+  });
+
+  // 9. คืนค่า Container ที่สมบูรณ์แล้วออกไป
   return boxContainer;
 }
 
