@@ -86,6 +86,12 @@ class SelectionManager {
       this.deselectElement(element);
     });
 
+    // Dispatch event for ComponentTree sync
+    if (elementsToDeselect.length > 0) {
+      const event = new CustomEvent('selection-cleared');
+      window.dispatchEvent(event);
+    }
+
     console.log('🔄 Deselected all elements');
   }
 

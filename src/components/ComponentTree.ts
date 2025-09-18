@@ -50,13 +50,13 @@ export class ComponentTree {
    */
   private setupSelectionSync(): void {
     // Listen for selection changes from PixiJS canvas
-    window.addEventListener('pixi-selection-change', (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const selectedPixiNode = customEvent.detail?.container;
-      if (selectedPixiNode && customEvent.detail?.action === 'select') {
-        this.syncSelectionFromPixi(selectedPixiNode);
-      }
-    });
+    window.addEventListener('pixi-selection-change', this.handlePixiSelectionChange);
+
+    // Listen for selection manager deselect all events
+    window.addEventListener('selection-cleared', this.handleSelectionCleared);
+
+    // Listen for component name changes from PixiJS
+    window.addEventListener('pixi-component-name-changed', this.handleComponentNameChange);
   }
 
   /**
@@ -115,22 +115,22 @@ export class ComponentTree {
    */
   private selectComponent(component: C4Component): void {
     // Deselect ทุก tree nodes ก่อน
-    this.treeContainer.querySelectorAll('.tree-node').forEach(node => {
-      node.classList.remove('selected');
-      node.setAttribute('aria-selected', 'false');
-    });
+    this.clearAllTreeSelections();
 
     // Select tree node ที่ต้องการ
     const treeNode = this.treeContainer.querySelector(`[data-component-id="${component.id}"]`);
     if (treeNode) {
       treeNode.classList.add('selected');
       treeNode.setAttribute('aria-selected', 'true');
+      
+      // Scroll into view for better UX
+      treeNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Sync กับ PixiJS selection ถ้ามี pixiNode
     if (component.pixiNode) {
       const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
-      if (selectableElement) {
+      if (selectableElement && !selectableElement.isSelected) {
         // Deselect ทุกอย่างใน PixiJS ก่อน
         selectionManager.deselectAll();
         // Select PixiJS node
@@ -142,16 +142,45 @@ export class ComponentTree {
   }
 
   /**
+   * Deselect component ใน tree และ sync กับ PixiJS
+   */
+  private deselectComponent(component: C4Component): void {
+    // Deselect tree node
+    const treeNode = this.treeContainer.querySelector(`[data-component-id="${component.id}"]`);
+    if (treeNode) {
+      treeNode.classList.remove('selected');
+      treeNode.setAttribute('aria-selected', 'false');
+    }
+
+    // Sync กับ PixiJS selection ถ้ามี pixiNode
+    if (component.pixiNode) {
+      const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
+      if (selectableElement && selectableElement.isSelected) {
+        selectionManager.deselectElement(selectableElement);
+      }
+    }
+
+    console.log('❌ Deselected component in tree:', component.name);
+  }
+
+  /**
+   * Clear all tree selections without affecting PixiJS
+   */
+  private clearAllTreeSelections(): void {
+    this.treeContainer.querySelectorAll('.tree-node').forEach(node => {
+      node.classList.remove('selected');
+      node.setAttribute('aria-selected', 'false');
+    });
+  }
+
+  /**
    * Sync selection จาก PixiJS canvas มายัง tree
    */
   private syncSelectionFromPixi(pixiNode: Container): void {
     const treeComponent = (pixiNode as any).treeComponent as C4Component;
     if (treeComponent) {
-      // Deselect ทุก tree nodes ก่อน
-      this.treeContainer.querySelectorAll('.tree-node').forEach(node => {
-        node.classList.remove('selected');
-        node.setAttribute('aria-selected', 'false');
-      });
+      // Clear all tree selections first
+      this.clearAllTreeSelections();
 
       // Select tree node ที่ตรงกับ PixiJS node
       const treeNode = this.treeContainer.querySelector(`[data-component-id="${treeComponent.id}"]`);
@@ -159,6 +188,25 @@ export class ComponentTree {
         treeNode.classList.add('selected');
         treeNode.setAttribute('aria-selected', 'true');
         treeNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        console.log('🔄 Synced selection from PixiJS to tree:', treeComponent.name);
+      }
+    }
+  }
+
+  /**
+   * Sync deselection จาก PixiJS canvas มายัง tree
+   */
+  private syncDeselectionFromPixi(pixiNode: Container): void {
+    const treeComponent = (pixiNode as any).treeComponent as C4Component;
+    if (treeComponent) {
+      // Deselect specific tree node
+      const treeNode = this.treeContainer.querySelector(`[data-component-id="${treeComponent.id}"]`);
+      if (treeNode) {
+        treeNode.classList.remove('selected');
+        treeNode.setAttribute('aria-selected', 'false');
+        
+        console.log('🔄 Synced deselection from PixiJS to tree:', treeComponent.name);
       }
     }
   }
@@ -205,24 +253,70 @@ export class ComponentTree {
         <div class="tree-node-label" title="${component.name}">
           ${component.name}
         </div>
-        ${component.pixiNode ? '<div class="connection-indicator"></div>' : ''}
+        ${component.pixiNode ? '<div class="connection-indicator" title="Connected to canvas"></div>' : '<div class="disconnected-indicator" title="Not connected to canvas"></div>'}
+        <div class="selection-indicator"></div>
       </div>
     `;
 
     // เพิ่ม event listeners
     nodeElement.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.selectComponent(component);
+      this.handleTreeNodeClick(component, nodeElement);
     });
 
     nodeElement.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        this.selectComponent(component);
+        this.handleTreeNodeClick(component, nodeElement);
       }
     });
 
+    // เพิ่ม hover effects
+    nodeElement.addEventListener('mouseenter', () => {
+      this.highlightCorrespondingPixiNode(component, true);
+    });
+
+    nodeElement.addEventListener('mouseleave', () => {
+      this.highlightCorrespondingPixiNode(component, false);
+    });
+
     return nodeElement;
+  }
+
+  /**
+   * Handle tree node click with proper selection logic
+   */
+  private handleTreeNodeClick(component: C4Component, nodeElement: HTMLElement): void {
+    const isCurrentlySelected = nodeElement.classList.contains('selected');
+    
+    if (isCurrentlySelected) {
+      // Deselect if already selected
+      this.deselectComponent(component);
+    } else {
+      // Select the component
+      this.selectComponent(component);
+    }
+  }
+
+  /**
+   * Highlight corresponding PixiJS node when hovering over tree node
+   */
+  private highlightCorrespondingPixiNode(component: C4Component, highlight: boolean): void {
+    if (component.pixiNode) {
+      const boxGraphics = (component.pixiNode as any).boxGraphics;
+      if (boxGraphics) {
+        if (highlight) {
+          // Add subtle highlight tint
+          boxGraphics.tint = 0xE3F2FD; // Light blue tint
+        } else {
+          // Remove highlight tint (unless selected)
+          const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
+          if (!selectableElement || !selectableElement.isSelected) {
+            boxGraphics.tint = 0xFFFFFF; // White (normal)
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -266,15 +360,70 @@ export class ComponentTree {
   }
 
   /**
-   * ลบ component ออกจาก tree
+   * ลบ component ออกจาก tree และ sync selection state
    */
   removeComponent(componentId: string): void {
     const component = this.components.get(componentId);
     if (component) {
+      // ถ้า component ที่จะลบถูก select อยู่ ให้ deselect ก่อน
+      if (component.pixiNode) {
+        const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
+        if (selectableElement && selectableElement.isSelected) {
+          selectionManager.deselectElement(selectableElement);
+        }
+        
+        // ลบ reference ใน pixiNode
+        delete (component.pixiNode as any).treeComponent;
+      }
+      
       this.components.delete(componentId);
       this.updateTreeDisplay();
       console.log('❌ Removed component from tree:', component.name);
     }
+  }
+
+  /**
+   * ลบ component โดยใช้ PixiJS node reference
+   */
+  removeComponentByPixiNode(pixiNode: Container): void {
+    const treeComponent = (pixiNode as any).treeComponent as C4Component;
+    if (treeComponent) {
+      this.removeComponent(treeComponent.id);
+    }
+  }
+
+  /**
+   * อัปเดต selection state consistency เมื่อมีการเปลี่ยนแปลง
+   */
+  updateSelectionConsistency(): void {
+    // ตรวจสอบว่า selected elements ใน PixiJS ยังมีอยู่ใน tree หรือไม่
+    const selectedElements = selectionManager.getSelectedElements();
+    
+    selectedElements.forEach(element => {
+      const pixiNode = element.container;
+      const treeComponent = (pixiNode as any).treeComponent as C4Component;
+      
+      if (!treeComponent || !this.components.has(treeComponent.id)) {
+        // ถ้า component ไม่มีใน tree แล้ว ให้ deselect
+        selectionManager.deselectElement(element);
+      }
+    });
+
+    // ตรวจสอบ tree selections ว่ายังตรงกับ PixiJS หรือไม่
+    this.treeContainer.querySelectorAll('.tree-node.selected').forEach(treeNode => {
+      const componentId = treeNode.getAttribute('data-component-id');
+      if (componentId) {
+        const component = this.components.get(componentId);
+        if (component && component.pixiNode) {
+          const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
+          if (selectableElement && !selectableElement.isSelected) {
+            // ถ้า PixiJS node ไม่ได้ถูก select แต่ tree node ถูก select ให้แก้ไข
+            treeNode.classList.remove('selected');
+            treeNode.setAttribute('aria-selected', 'false');
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -285,9 +434,81 @@ export class ComponentTree {
   }
 
   /**
+   * Get currently selected component
+   */
+  getSelectedComponent(): C4Component | null {
+    const selectedNode = this.treeContainer.querySelector('.tree-node.selected');
+    if (selectedNode) {
+      const componentId = selectedNode.getAttribute('data-component-id');
+      if (componentId) {
+        return this.components.get(componentId) || null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if a component is currently selected in the tree
+   */
+  isComponentSelected(componentId: string): boolean {
+    const treeNode = this.treeContainer.querySelector(`[data-component-id="${componentId}"]`);
+    return treeNode ? treeNode.classList.contains('selected') : false;
+  }
+
+  /**
+   * Force refresh of all selection states
+   */
+  refreshSelectionStates(): void {
+    this.components.forEach(component => {
+      const treeNode = this.treeContainer.querySelector(`[data-component-id="${component.id}"]`);
+      if (treeNode && component.pixiNode) {
+        const selectableElement = (component.pixiNode as any).selectableElement as SelectableElement;
+        const isPixiSelected = selectableElement ? selectableElement.isSelected : false;
+        const isTreeSelected = treeNode.classList.contains('selected');
+
+        // Sync tree selection with PixiJS selection
+        if (isPixiSelected && !isTreeSelected) {
+          treeNode.classList.add('selected');
+          treeNode.setAttribute('aria-selected', 'true');
+        } else if (!isPixiSelected && isTreeSelected) {
+          treeNode.classList.remove('selected');
+          treeNode.setAttribute('aria-selected', 'false');
+        }
+      }
+    });
+  }
+
+  /**
+   * Handle component name changes from PixiJS
+   */
+  updateComponentName(pixiNode: Container, newName: string): void {
+    const treeComponent = (pixiNode as any).treeComponent as C4Component;
+    if (treeComponent) {
+      treeComponent.name = newName;
+      
+      // Update tree display
+      const treeNode = this.treeContainer.querySelector(`[data-component-id="${treeComponent.id}"]`);
+      if (treeNode) {
+        const labelElement = treeNode.querySelector('.tree-node-label');
+        if (labelElement) {
+          labelElement.textContent = newName;
+          labelElement.setAttribute('title', newName);
+        }
+      }
+      
+      console.log('📝 Updated component name in tree:', newName);
+    }
+  }
+
+  /**
    * ทำความสะอาด ComponentTree
    */
   destroy(): void {
+    // Remove event listeners
+    window.removeEventListener('pixi-selection-change', this.handlePixiSelectionChange);
+    window.removeEventListener('selection-cleared', this.handleSelectionCleared);
+    window.removeEventListener('pixi-component-name-changed', this.handleComponentNameChange);
+
     // ลบ components ทั้งหมด
     this.components.clear();
 
@@ -298,4 +519,35 @@ export class ComponentTree {
 
     console.log('🗑️ ComponentTree destroyed');
   }
+
+  /**
+   * Event handler methods for proper cleanup
+   */
+  private handlePixiSelectionChange = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const selectedPixiNode = customEvent.detail?.container;
+    const action = customEvent.detail?.action;
+    
+    if (selectedPixiNode) {
+      if (action === 'select') {
+        this.syncSelectionFromPixi(selectedPixiNode);
+      } else if (action === 'deselect') {
+        this.syncDeselectionFromPixi(selectedPixiNode);
+      }
+    }
+  };
+
+  private handleSelectionCleared = () => {
+    this.clearAllTreeSelections();
+  };
+
+  private handleComponentNameChange = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const pixiNode = customEvent.detail?.container;
+    const newName = customEvent.detail?.newName;
+    
+    if (pixiNode && newName) {
+      this.updateComponentName(pixiNode, newName);
+    }
+  };
 }

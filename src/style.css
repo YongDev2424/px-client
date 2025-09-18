@@ -612,17 +612,56 @@ canvas {
   border-left: 3px solid var(--c4-level4);
 }
 
-/* Connected Status Indicator */
-.tree-node.connected::after {
-  content: '';
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+/* Connection Status Indicators */
+.connection-indicator {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background-color: var(--focus-color);
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast);
+}
+
+.disconnected-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.4;
+  transition: opacity var(--transition-fast);
+}
+
+.tree-node:hover .connection-indicator,
+.tree-node:hover .disconnected-indicator {
+  opacity: 1;
+}
+
+/* Selection Indicator */
+.selection-indicator {
+  width: 3px;
+  height: 16px;
+  background-color: transparent;
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.tree-node.selected .selection-indicator {
+  background-color: var(--focus-color);
+}
+
+/* Visual feedback for corresponding PixiJS node highlighting */
+.tree-node.highlighting {
+  background-color: rgba(79, 195, 247, 0.1);
+  border-color: var(--focus-color);
+}
+
+.tree-node.highlighting:not(.selected) {
+  background-color: rgba(79, 195, 247, 0.05);
 }
 
 /* Empty State */

@@ -150,6 +150,12 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
         ...(boxContainer as any).nodeData,
         labelText: newText
       };
+      
+      // Notify ComponentTree about name change
+      const event = new CustomEvent('pixi-component-name-changed', {
+        detail: { container: boxContainer, newName: newText, oldName: oldText }
+      });
+      window.dispatchEvent(event);
     },
     onEditStart: () => {
       console.log('เริ่มแก้ไข Node label');
