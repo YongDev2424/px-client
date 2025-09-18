@@ -1,5 +1,8 @@
 # Requirements Document
 
+## ⚠️ Important Note for PixiJS Development
+**Before working on any requirements involving PixiJS integration, please read `.claude/pixijs-v8-patterns.md` for proper API usage patterns and syntax. This project uses PixiJS v8 which has different syntax from earlier versions.**
+
 ## Introduction
 
 ฟีเจอร์ Dashboard Layout Management จะจัดการการแบ่งพื้นที่หน้าจอเป็นสัดส่วนที่เหมาะสมสำหรับการทำงานกับ C4 diagram โดยแบ่งเป็น 3 ส่วนหลัก: Left Panel สำหรับแสดงรายการ C4 components แบบ hierarchical, Toolbar สำหรับเครื่องมือจัดการ และ Canvas สำหรับแสดงและแก้ไข diagram พร้อมระบบ zoom และ grid background

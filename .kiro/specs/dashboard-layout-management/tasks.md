@@ -1,5 +1,8 @@
 # Implementation Plan
 
+## ⚠️ Important Note for PixiJS Development
+**Before working on any tasks involving PixiJS integration, please read `.claude/pixijs-v8-patterns.md` for proper API usage patterns and syntax. This project uses PixiJS v8 which has different syntax from earlier versions.**
+
 - [x] 1. Setup core layout structure and HTML foundation
   - Create new HTML structure with CSS Grid layout for 3-panel design
   - Replace current floating toolbar with fixed layout system
