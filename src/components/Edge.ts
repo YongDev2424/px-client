@@ -2,7 +2,6 @@
 
 import { Container, Graphics, Point } from 'pixi.js';
 import { createEditableLabel } from './EditableLabel';
-import { positionLabelOnEdge } from './EdgeLabel';
 
 /**
  * คำนวณจุดกึ่งกลางระหว่างสองจุด
@@ -15,6 +14,75 @@ function getMidPoint(point1: Point, point2: Point): Point {
     (point1.x + point2.x) / 2,
     (point1.y + point2.y) / 2
   );
+}
+
+/**
+ * สร้าง Floating Edge Label ที่มีดีไซน์คล้าย Node แต่โปร่งใสกว่า
+ * @param labelText - ข้อความ label
+ * @param onTextChange - callback เมื่อข้อความเปลี่ยน
+ * @returns Container ของ floating label
+ */
+function createFloatingEdgeLabel(
+  labelText: string,
+  onTextChange?: (newText: string, oldText: string) => void
+): Container {
+  const labelContainer = new Container();
+  
+  // สร้างพื้นหลังกล่อง (คล้าย Node แต่โปร่งใสกว่า)
+  const labelBackground = new Graphics();
+  
+  // คำนวณขนาดกล่องตามความยาวข้อความ
+  const padding = 8;
+  const textWidth = labelText.length * 7; // ประมาณการความกว้างข้อความ
+  const boxWidth = Math.max(60, textWidth + padding * 2);
+  const boxHeight = 24;
+  
+  // วาดกล่องพื้นหลังแบบ outlined พร้อม rounded corners (เหลี่ยมมากขึ้น)
+  labelBackground
+    .roundRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight, 4) // radius น้อยลง (เหลี่ยมมากขึ้น)
+    .fill({ color: 0x1e1e1e, alpha: 0.6 }) // โปร่งใสมากขึ้น
+    .stroke({ width: 1, color: 0x999999, alpha: 0.4 }); // ขอบโปร่งใสมากขึ้น
+  
+  // สร้าง label ด้วย createEditableLabel
+  const textLabel = createEditableLabel({
+    text: labelText,
+    fontSize: 11,
+    textColor: 0xFFFFFF,
+    hasBackground: false, // ไม่ต้องการพื้นหลังเพิ่ม เพราะมีแล้ว
+    onTextChange: onTextChange || (() => {}),
+    onEditStart: () => {
+      console.log('เริ่มแก้ไข Edge label');
+    },
+    onEditEnd: () => {
+      console.log('จบการแก้ไข Edge label');
+    }
+  });
+  
+  // จัดตำแหน่งข้อความให้อยู่กึ่งกลางกล่อง
+  textLabel.x = 0;
+  textLabel.y = 0;
+  
+  // เพิ่มส่วนประกอบเข้าใน container
+  labelContainer.addChild(labelBackground);
+  labelContainer.addChild(textLabel);
+  
+  // เพิ่ม hover effects
+  labelContainer.eventMode = 'static';
+  labelContainer.cursor = 'pointer';
+  
+  labelContainer.on('pointerover', () => {
+    labelBackground.alpha = 0.9; // เพิ่มความทึบเมื่อ hover (แต่ยังโปร่งใส)
+  });
+  
+  labelContainer.on('pointerout', () => {
+    labelBackground.alpha = 0.6; // กลับเป็นโปร่งใสเดิม
+  });
+  
+  // เก็บ reference สำหรับการอัพเดทภายหลัง
+  (labelContainer as any).labelBackground = labelBackground;
+  (labelContainer as any).textLabel = textLabel;
+  
+  return labelContainer;
 }
 
 /**
@@ -160,7 +228,7 @@ export function createEdge(
   sourceNode: Container, 
   targetNode: Container,
   labelText: string = 'relationship',
-  lineColor: number = 0x000000,
+  lineColor: number = 0x999999, // เปลี่ยนจากสีดำเป็นสีเทาออกขาว
   lineWidth: number = 2,
   showArrow: boolean = true,
   sourceSide?: string,
@@ -178,74 +246,60 @@ export function createEdge(
   console.log('📍 Source (local):', startPoint, 'side:', sourceSide);
   console.log('📍 Target (local):', endPoint, 'side:', targetSide);
   
-  // คำนวณจุดกึ่งกลางและช่องว่างสำหรับ label
-  const midPoint = getMidPoint(startPoint, endPoint);
-  const totalDistance = Math.sqrt((endPoint.x - startPoint.x) ** 2 + (endPoint.y - startPoint.y) ** 2);
-  const labelGapSize = 60; // ขนาดช่องว่างสำหรับ label (pixels)
-  
-  // คำนวณจุดที่เส้นจะหยุดและเริ่มใหม่
-  const gapRatio = labelGapSize / totalDistance;
-  const gapStart = {
-    x: midPoint.x - (endPoint.x - startPoint.x) * gapRatio * 0.5,
-    y: midPoint.y - (endPoint.y - startPoint.y) * gapRatio * 0.5
-  };
-  const gapEnd = {
-    x: midPoint.x + (endPoint.x - startPoint.x) * gapRatio * 0.5,
-    y: midPoint.y + (endPoint.y - startPoint.y) * gapRatio * 0.5
-  };
-  
-  // สร้าง Graphics สำหรับเส้นส่วนแรก (จาก start ถึง gap start)
-  const lineGraphics1 = new Graphics();
-  lineGraphics1
+  // สร้าง Graphics สำหรับเส้นเดียวกัน (ไม่แบ่งเป็นสองส่วน)
+  const lineGraphics = new Graphics();
+  lineGraphics
     .moveTo(startPoint.x, startPoint.y)
-    .lineTo(gapStart.x, gapStart.y)
-    .stroke({ width: lineWidth, color: lineColor });
-  
-  // สร้าง Graphics สำหรับเส้นส่วนที่สอง (จาก gap end ถึง end)
-  const lineGraphics2 = new Graphics();
-  lineGraphics2
-    .moveTo(gapEnd.x, gapEnd.y)
     .lineTo(endPoint.x, endPoint.y)
     .stroke({ width: lineWidth, color: lineColor });
+
+  // เพิ่ม hover effects สำหรับ edge
+  lineGraphics.eventMode = 'static';
+  lineGraphics.cursor = 'pointer';
   
-  // เพิ่มเส้นทั้งสองส่วนเข้าใน Container
-  edgeContainer.addChild(lineGraphics1);
-  edgeContainer.addChild(lineGraphics2);
+  lineGraphics.on('pointerover', () => {
+    lineGraphics.tint = 0xFFFFFF; // เปลี่ยนเป็นสีขาวเมื่อ hover
+  });
+  
+  lineGraphics.on('pointerout', () => {
+    lineGraphics.tint = 0x999999; // กลับเป็นสีเทาออกขาว
+  });
+  
+  // เพิ่มเส้นเข้าใน Container
+  edgeContainer.addChild(lineGraphics);
   
   // สร้างลูกศรถ้าต้องการ
+  let arrowGraphics: Graphics | null = null;
   if (showArrow) {
     const angle = getAngleBetweenPoints(startPoint, endPoint);
-    const arrowGraphics = createArrowHead(endPoint, angle, 12, lineColor);
+    arrowGraphics = createArrowHead(endPoint, angle, 12, lineColor);
+    
+    // เพิ่ม hover effects สำหรับลูกศรด้วย
+    arrowGraphics.eventMode = 'static';
+    arrowGraphics.cursor = 'pointer';
+    
+    arrowGraphics.on('pointerover', () => {
+      arrowGraphics!.tint = 0xFFFFFF; // เปลี่ยนเป็นสีขาวเมื่อ hover
+    });
+    
+    arrowGraphics.on('pointerout', () => {
+      arrowGraphics!.tint = 0x999999; // กลับเป็นสีเทาออกขาว
+    });
+    
     edgeContainer.addChild(arrowGraphics);
   }
 
-  // สร้าง Label สำหรับ Edge ด้วย unified system
-  const labelContainer = createEditableLabel({
-    text: labelText,
-    fontSize: 12, // เล็กกว่า Node label
-    textColor: 0x000000,
-    backgroundColor: 0xFFFFFF,
-    hasBackground: true, // Edge label มีพื้นหลัง
-    padding: 4,
-    borderColor: 0xCCCCCC,
-    borderWidth: 1,
-    onTextChange: (newText: string, oldText: string) => {
-      console.log(`Edge label เปลี่ยนจาก "${oldText}" เป็น "${newText}"`);
-      // อัปเดต metadata
-      (edgeContainer as any).edgeData.labelText = newText;
-    },
-    onEditStart: () => {
-      console.log('เริ่มแก้ไข Edge label');
-    },
-    onEditEnd: () => {
-      console.log('จบการแก้ไข Edge label');
-    }
+  // สร้าง Floating Label ที่มีดีไซน์คล้าย Node
+  const labelContainer = createFloatingEdgeLabel(labelText, (newText: string, oldText: string) => {
+    console.log(`Edge label เปลี่ยนจาก "${oldText}" เป็น "${newText}"`);
+    // อัปเดต metadata
+    (edgeContainer as any).edgeData.labelText = newText;
   });
 
-  // วางตำแหน่ง Label ตรงกลาง Edge
+  // วางตำแหน่ง Label ตรงกลาง Edge (floating เหนือเส้น)
   const labelMidPoint = getMidPoint(startPoint, endPoint);
-  const angle = getAngleBetweenPoints(startPoint, endPoint);
-  positionLabelOnEdge(labelContainer, labelMidPoint, angle, 0);
+  labelContainer.x = labelMidPoint.x;
+  labelContainer.y = labelMidPoint.y - 15; // ยกขึ้นเหนือเส้นเล็กน้อย
 
   // เพิ่ม Label เข้าใน Edge Container
   edgeContainer.addChild(labelContainer);
@@ -291,7 +345,7 @@ export function createEdge(
 export function createPreviewEdge(
   startPoint: Point,
   endPoint: Point,
-  lineColor: number = 0x666666,
+  lineColor: number = 0x999999, // ใช้สีเทาออกขาวเหมือน edge จริง
   lineWidth: number = 2,
   alpha: number = 0.7
 ): Graphics {
@@ -340,50 +394,50 @@ export function updateEdgePosition(edgeContainer: Container): void {
   // ล้างและวาดใหม่
   edgeContainer.removeChildren();
   
-  // คำนวณจุดกึ่งกลางและช่องว่างสำหรับ label (เหมือนใน createEdge)
-  const midPoint = getMidPoint(newStartPoint, newEndPoint);
-  const totalDistance = Math.sqrt((newEndPoint.x - newStartPoint.x) ** 2 + (newEndPoint.y - newStartPoint.y) ** 2);
-  const labelGapSize = 60; // ขนาดช่องว่างสำหรับ label (pixels)
-  
-  // คำนวณจุดที่เส้นจะหยุดและเริ่มใหม่
-  const gapRatio = labelGapSize / totalDistance;
-  const gapStart = {
-    x: midPoint.x - (newEndPoint.x - newStartPoint.x) * gapRatio * 0.5,
-    y: midPoint.y - (newEndPoint.y - newStartPoint.y) * gapRatio * 0.5
-  };
-  const gapEnd = {
-    x: midPoint.x + (newEndPoint.x - newStartPoint.x) * gapRatio * 0.5,
-    y: midPoint.y + (newEndPoint.y - newStartPoint.y) * gapRatio * 0.5
-  };
-  
-  // สร้างเส้นส่วนแรก
-  const lineGraphics1 = new Graphics();
-  lineGraphics1
+  // สร้างเส้นเดียวกัน (ไม่แบ่งเป็นสองส่วน)
+  const lineGraphics = new Graphics();
+  lineGraphics
     .moveTo(newStartPoint.x, newStartPoint.y)
-    .lineTo(gapStart.x, gapStart.y)
-    .stroke({ width: 2, color: 0x000000 });
-  
-  // สร้างเส้นส่วนที่สอง
-  const lineGraphics2 = new Graphics();
-  lineGraphics2
-    .moveTo(gapEnd.x, gapEnd.y)
     .lineTo(newEndPoint.x, newEndPoint.y)
-    .stroke({ width: 2, color: 0x000000 });
+    .stroke({ width: 2, color: 0x999999 }); // ใช้สีเทาออกขาว
+
+  // เพิ่ม hover effects สำหรับเส้น
+  lineGraphics.eventMode = 'static';
+  lineGraphics.cursor = 'pointer';
+  
+  lineGraphics.on('pointerover', () => {
+    lineGraphics.tint = 0xFFFFFF; // เปลี่ยนเป็นสีขาวเมื่อ hover
+  });
+  
+  lineGraphics.on('pointerout', () => {
+    lineGraphics.tint = 0x999999; // กลับเป็นสีเทาออกขาว
+  });
   
   // สร้างลูกศรใหม่
   const angle = getAngleBetweenPoints(newStartPoint, newEndPoint);
-  const arrowGraphics = createArrowHead(newEndPoint, angle);
+  const arrowGraphics = createArrowHead(newEndPoint, angle, 12, 0x999999); // ใช้สีเทาออกขาว
+  
+  // เพิ่ม hover effects สำหรับลูกศรด้วย
+  arrowGraphics.eventMode = 'static';
+  arrowGraphics.cursor = 'pointer';
+  
+  arrowGraphics.on('pointerover', () => {
+    arrowGraphics.tint = 0xFFFFFF; // เปลี่ยนเป็นสีขาวเมื่อ hover
+  });
+  
+  arrowGraphics.on('pointerout', () => {
+    arrowGraphics.tint = 0x999999; // กลับเป็นสีเทาออกขาว
+  });
   
   // เพิ่มกลับเข้าไป
-  edgeContainer.addChild(lineGraphics1);
-  edgeContainer.addChild(lineGraphics2);
+  edgeContainer.addChild(lineGraphics);
   edgeContainer.addChild(arrowGraphics);
   
-  // อัปเดตตำแหน่ง Label ถ้ามี
+  // อัปเดตตำแหน่ง Label ถ้ามี (floating เหนือเส้น)
   if (labelContainer) {
     const newMidPoint = getMidPoint(newStartPoint, newEndPoint);
-    const newAngle = getAngleBetweenPoints(newStartPoint, newEndPoint);
-    positionLabelOnEdge(labelContainer, newMidPoint, newAngle, 0);
+    labelContainer.x = newMidPoint.x;
+    labelContainer.y = newMidPoint.y - 15; // ยกขึ้นเหนือเส้นเล็กน้อย
     
     // เพิ่ม Label กลับเข้าไป
     edgeContainer.addChild(labelContainer);

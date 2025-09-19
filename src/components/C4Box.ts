@@ -29,7 +29,7 @@ function createConnectionPoint(side: ConnectionSide): Graphics {
 
   // 2. ใช้เมธอดต่างๆ เพื่อ "สั่ง" ให้วาดลงบนผืนผ้าใบนั้น (ตาม PixiJS v8 API)
   point.circle(0, 0, 5); // วาดวงกลมรัศมี 5 pixels
-  point.fill(0x000000); // สีดำ (เรียกหลังวาดใน v8)
+  point.fill(0xFFFFFF); // สีขาว (เปลี่ยนจากสีดำเป็นสีขาว)
 
   // 3. ตั้งค่าการโต้ตอบให้กับ "ผืนผ้าใบ" โดยตรง (เฉพาะเมื่อแสดงผล)
   point.eventMode = 'static';
@@ -46,7 +46,7 @@ function createConnectionPoint(side: ConnectionSide): Graphics {
   (point as any).side = side;
 
   // 7. เพิ่มฟังก์ชัน helper สำหรับขยาง/ย่อ hit area
-  (point as any).setHitAreaRadius = function(radius: number) {
+  (point as any).setHitAreaRadius = function (radius: number) {
     this.hitArea = new Circle(0, 0, radius);
   };
 
@@ -99,7 +99,7 @@ function setupConnectionPointEvents(connectionPoint: Graphics, boxContainer: Con
   // เมื่อ click ที่ Connection Point - เริ่มหรือเสร็จสิ้นการสร้าง Edge
   connectionPoint.on('pointerdown', (event: FederatedPointerEvent) => {
     event.stopPropagation(); // หยุดไม่ให้ไป trigger Container events
-    
+
     // ถ้ากำลังสร้าง edge อยู่แล้ว ให้เสร็จสิ้น edge ที่ connection point นี้
     if (edgeStateManager.isCreatingEdge()) {
       completeEdgeCreation(boxContainer, connectionPoint, event);
@@ -108,14 +108,14 @@ function setupConnectionPointEvents(connectionPoint: Graphics, boxContainer: Con
       startEdgeCreation(boxContainer, connectionPoint, event);
     }
   });
-  
+
   // เพิ่ม visual feedback เมื่อ hover บน connection point
   connectionPoint.on('pointerover', (event: FederatedPointerEvent) => {
     event.stopPropagation();
     // เปลี่ยนสี connection point เมื่อ hover
     connectionPoint.tint = 0x00FF00; // สีเขียว
   });
-  
+
   connectionPoint.on('pointerout', (event: FederatedPointerEvent) => {
     event.stopPropagation();
     // เปลี่ยนกลับเป็นสีเดิม
@@ -135,18 +135,20 @@ function setupConnectionPointEvents(connectionPoint: Graphics, boxContainer: Con
  * @returns - วัตถุ Container ของกล่องที่สร้างเสร็จแล้ว
  */
 export function createC4Box(
-  app: Application, 
-  labelText: string, 
-  boxColor: number, 
+  app: Application,
+  labelText: string,
+  boxColor: number,
   enhanced?: boolean,
   enhancementOptions?: C4StyleOptions
 ): Container {
   // 1. สร้าง Container และส่วนประกอบภาพทั้งหมด
   const boxContainer = new Container();
+
+  // สร้าง outlined box แทนการใช้สีเต็ม
   const boxGraphics = new Graphics()
-    .fill(boxColor)
     .rect(0, 0, 200, 100)
-    .fill();
+    .fill(0x1e1e1e) // พื้นหลังเป็นสีเดียวกับ canvas
+    .stroke({ width: 2, color: 0x999999 }); // ขอบสีเทาออกขาว
   // สร้าง Label ที่แก้ไขได้สำหรับ Node
   const boxLabel = createEditableLabel({
     text: labelText,
@@ -160,7 +162,7 @@ export function createC4Box(
         ...(boxContainer as any).nodeData,
         labelText: newText
       };
-      
+
       // Notify ComponentTree about name change
       const event = new CustomEvent('pixi-component-name-changed', {
         detail: { container: boxContainer, newName: newText, oldName: oldText }
@@ -189,7 +191,7 @@ export function createC4Box(
   // EditableLabel ใช้ pivot แล้ว ดังนั้นแค่ต้องวางไว้กึ่งกลาง box
   boxLabel.x = boxGraphics.width / 2;
   boxLabel.y = boxGraphics.height / 2;
-  
+
   // ConnectionPoint ถูกจัดตำแหน่งแล้วใน createAllConnectionPoints()
 
   // 4. กำหนดตำแหน่งเริ่มต้นของ Container ทั้งหมดบนฉาก
@@ -203,7 +205,7 @@ export function createC4Box(
   (boxContainer as any).boxGraphics = boxGraphics;
   (boxContainer as any).connectionPoints = connectionPoints;
   (boxContainer as any).nodeLabel = boxLabel;
-  
+
   // เก็บ metadata ของ Node
   (boxContainer as any).nodeData = {
     labelText: labelText,
@@ -212,11 +214,11 @@ export function createC4Box(
   };
 
   // 6. เพิ่ม Event Handlers สำหรับการจัดการ hover และ click effects
-  
+
   // เมื่อ pointer เข้ามา hover บน Container (Node area แต่ไม่ใช่ connection point)
   boxContainer.on('pointerover', (event: FederatedPointerEvent) => {
     event.stopPropagation();
-    
+
     // ปกติ: แสดง connection points ทั้งหมดเมื่อ hover
     connectionStateManager.setHoveredNode(boxContainer);
     fadeIn(connectionPoints.top, 150);
@@ -224,14 +226,14 @@ export function createC4Box(
     fadeIn(connectionPoints.bottom, 150);
     fadeIn(connectionPoints.left, 150);
   });
-  
+
   // เมื่อ pointer ออกจาก Container
   boxContainer.on('pointerout', (event: FederatedPointerEvent) => {
     event.stopPropagation();
-    
+
     // ปกติ: ซ่อน connection points เมื่อออกจาก hover (เว้นแต่ถูก pin)
     connectionStateManager.setHoveredNode(null);
-    
+
     if (!connectionStateManager.isPinned(boxContainer)) {
       fadeOut(connectionPoints.top, 150);
       fadeOut(connectionPoints.right, 150);
@@ -239,17 +241,17 @@ export function createC4Box(
       fadeOut(connectionPoints.left, 150);
     }
   });
-  
+
   // เมื่อ click บน Container (Node area)
   boxContainer.on('pointerdown', (event: FederatedPointerEvent) => {
     event.stopPropagation();
-    
+
     // 1. Toggle Selection ของ Node
     selectionManager.toggleSelection(selectableElement);
-    
+
     // 2. ปกติ: คลิกบน Node area = pin/unpin connection points
     const isPinned = connectionStateManager.togglePin(boxContainer);
-    
+
     if (isPinned) {
       fadeIn(connectionPoints.top, 150);
       fadeIn(connectionPoints.right, 150);
@@ -262,7 +264,7 @@ export function createC4Box(
       fadeOut(connectionPoints.left, 150);
     }
   });
-  
+
   // เพิ่ม Event Handlers สำหรับ Connection Point ทั้งหมด (แยกจาก Container)
   setupConnectionPointEvents(connectionPoints.top, boxContainer);
   setupConnectionPointEvents(connectionPoints.right, boxContainer);
@@ -279,7 +281,7 @@ export function createC4Box(
       console.log('🎯 Selected C4Box:', labelText);
       // เพิ่ม visual feedback เมื่อถูก select (ถ้าต้องการ)
       (boxContainer as any).nodeData.isSelected = true;
-      
+
       // Dispatch event สำหรับ ComponentTree sync
       const event = new CustomEvent('pixi-selection-change', {
         detail: { container: boxContainer, action: 'select' }
@@ -290,7 +292,7 @@ export function createC4Box(
       console.log('⭕ Deselected C4Box:', labelText);
       // ลบ visual feedback เมื่อถูก deselect
       (boxContainer as any).nodeData.isSelected = false;
-      
+
       // Dispatch event สำหรับ ComponentTree sync
       const event = new CustomEvent('pixi-selection-change', {
         detail: { container: boxContainer, action: 'deselect' }
@@ -318,30 +320,30 @@ export function createC4Box(
  */
 function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphics, event: FederatedPointerEvent): void {
   console.log('เริ่มสร้าง Edge จาก Node:', sourceNode, 'ด้าน:', (sourceConnectionPoint as any).side);
-  
+
   // คำนวณจุดเริ่มต้น (พิกัด global ของ connection point จริง)
   const globalStartPoint = sourceConnectionPoint.getGlobalPosition();
   console.log('🎯 ตำแหน่งจริงของ Connection Point (global):', globalStartPoint);
   console.log('🖱️ ตำแหน่งเมาส์ (global):', event.global);
-  
+
   // หา stage เพื่อแปลงพิกัด global เป็น local
   let stage = sourceNode.parent;
   while (stage && stage.parent) {
     stage = stage.parent as Container;
   }
-  
+
   // แปลงพิกัด global เป็น local coordinates ของ stage
   const localStartPoint = stage ? stage.toLocal(globalStartPoint) : globalStartPoint;
   console.log('📍 ตำแหน่ง Connection Point (local บน stage):', localStartPoint);
-  
+
   // สร้าง preview line ด้วยพิกัด local
   const previewLine = createPreviewEdge(localStartPoint, localStartPoint);
-  
+
   // เพิ่ม preview line เข้าใน stage
   if (stage) {
     stage.addChild(previewLine);
   }
-  
+
   // เริ่มต้นการสร้าง edge พร้อมส่ง local coordinates
   edgeStateManager.startEdgeCreation(sourceNode, localStartPoint, previewLine, sourceConnectionPoint);
 }
@@ -354,63 +356,63 @@ function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphic
  */
 function completeEdgeCreation(targetNode: Container, targetConnectionPoint: Graphics, _event: FederatedPointerEvent): void {
   console.log('เสร็จสิ้นการสร้าง Edge ที่ Node:', targetNode, 'ด้าน:', (targetConnectionPoint as any).side);
-  
+
   // ได้ตำแหน่งจริงของ Target Connection Point
   const targetPoint = targetConnectionPoint.getGlobalPosition();
   console.log('🎯 ตำแหน่งจริงของ Target Connection Point:', targetPoint);
-  
+
   // ได้ source node จาก edge state manager
   const sourceNode = edgeStateManager.getSourceNode();
   if (!sourceNode) {
     console.error('ไม่พบ source node');
     return;
   }
-  
+
   // ตรวจสอบว่าไม่ใช่ Node เดียวกัน
   if (sourceNode === targetNode) {
     console.warn('ไม่สามารถสร้าง edge ไปยัง Node เดียวกันได้');
     edgeStateManager.cancelEdgeCreation();
     return;
   }
-  
+
   // ลบ preview line ออกจาก stage ก่อน
   const previewLine = edgeStateManager.getPreviewLine();
   if (previewLine && previewLine.parent) {
     previewLine.parent.removeChild(previewLine);
   }
-  
+
   // ได้ข้อมูล side จาก connection points
   const sourceConnectionPoint = edgeStateManager.getSourceConnectionPoint();
   const sourceSide = sourceConnectionPoint ? (sourceConnectionPoint as any).side : 'right';
   const targetSide = (targetConnectionPoint as any).side;
-  
-  // สร้าง edge จริงด้วย createEdge() พร้อม side information
-  const edgeContainer = createEdge(sourceNode, targetNode, 'relationship', 0x000000, 2, true, sourceSide, targetSide);
-  
+
+  // สร้าง edge จริงด้วย createEdge() พร้อม side information (ใช้สีเทาออกขาว)
+  const edgeContainer = createEdge(sourceNode, targetNode, 'relationship', 0x999999, 2, true, sourceSide, targetSide);
+
   // หา stage เพื่อเพิ่ม edge ลงไป
   let currentParent = targetNode.parent;
   while (currentParent && currentParent.parent) {
     currentParent = currentParent.parent as Container;
   }
-  
+
   if (currentParent) {
     currentParent.addChild(edgeContainer);
     console.log('เพิ่ม Edge ลงใน stage แล้ว');
   }
-  
+
   // เสร็จสิ้นการสร้าง edge ใน state manager
   const edgeData = edgeStateManager.completeEdge(targetNode, edgeContainer as any, 'เชื่อมต่อ');
-  
+
   // Reset visual states
   // 1. Reset node tints กลับเป็นสีขาว
   const sourceGraphics = (sourceNode as any).boxGraphics;
   const targetGraphics = (targetNode as any).boxGraphics;
   if (sourceGraphics) sourceGraphics.tint = 0xFFFFFF;
   if (targetGraphics) targetGraphics.tint = 0xFFFFFF;
-  
+
   // 2. Reset connection states (ถ้าไม่ถูก pin ไว้ ให้ซ่อน connection points)
   connectionStateManager.setHoveredNode(null);
-  
+
   if (edgeData) {
     console.log('สร้าง Edge สำเร็จ:', edgeData.id);
   }

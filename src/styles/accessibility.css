@@ -1,0 +1,417 @@
+/* ===== Accessibility Enhancements ===== */
+/*
+ * ADDITIVE APPROACH: เพิ่มคุณสมบัติ accessibility โดยไม่ทำลายการทำงานเดิม
+ * ใช้ CSS classes เพื่อเปิด/ปิดคุณสมบัติต่างๆ
+ */
+
+/* ===== Enhanced Focus Indicators ===== */
+/* ปรับปรุง focus indicators ให้เห็นชัดเจนขึ้น */
+.enhanced-focus *:focus-visible {
+  outline: 3px solid var(--focus-color, #4fc3f7);
+  outline-offset: 2px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(79, 195, 247, 0.3);
+}
+
+/* Focus indicators สำหรับ interactive elements */
+.enhanced-focus .toolbar-btn:focus-visible,
+.enhanced-focus .toggle-btn:focus-visible,
+.enhanced-focus .expand-btn:focus-visible {
+  outline: 3px solid var(--focus-color, #4fc3f7);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(79, 195, 247, 0.2);
+}
+
+.enhanced-focus .tree-node:focus-visible {
+  outline: 2px solid var(--focus-color, #4fc3f7);
+  outline-offset: -2px;
+  background-color: rgba(79, 195, 247, 0.1);
+}
+
+/* ===== High Contrast Mode ===== */
+/* เพิ่มความคมชัดสำหรับผู้ที่มีปัญหาการมองเห็น */
+.high-contrast {
+  --bg-primary: #000000;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --bg-quaternary: #3a3a3a;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-accent: #ffff00;
+  --text-muted: #c0c0c0;
+  
+  --border-color: #ffffff;
+  --border-light: #e0e0e0;
+  --hover-color: #333333;
+  --selected-color: #0066cc;
+  --focus-color: #ffff00;
+  
+  --c4-level1: #0099ff;
+  --c4-level2: #00cc00;
+  --c4-level3: #ff9900;
+  --c4-level4: #cccccc;
+}
+
+.high-contrast .tree-node,
+.high-contrast .toolbar-btn,
+.high-contrast .toggle-btn,
+.high-contrast .expand-btn {
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.high-contrast .tree-node:hover,
+.high-contrast .toolbar-btn:hover {
+  border-color: var(--focus-color);
+  background-color: var(--hover-color);
+}
+
+.high-contrast .tree-node.selected {
+  border-color: var(--focus-color);
+  background-color: var(--selected-color);
+  color: var(--text-primary);
+}
+
+/* ===== Reduced Motion ===== */
+/* ลดการเคลื่อนไหวสำหรับผู้ที่มีปัญหาเวียนศีรษะ */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduced-motion .app-layout {
+  transition: none !important;
+}
+
+.reduced-motion .left-panel {
+  transition: none !important;
+}
+
+.reduced-motion .tree-node,
+.reduced-motion .toolbar-btn,
+.reduced-motion .toggle-btn {
+  transition: none !important;
+  will-change: auto !important;
+}
+
+/* ===== Large Text Mode ===== */
+/* เพิ่มขนาดตัวอักษรสำหรับผู้ที่มีปัญหาการมองเห็น */
+.large-text {
+  --text-xs: 16px;    /* เพิ่มจาก 12px */
+  --text-sm: 18px;    /* เพิ่มจาก 14px */
+  --text-base: 20px;  /* เพิ่มจาก 16px */
+  --text-lg: 24px;    /* เพิ่มจาก 18px */
+  --text-xl: 28px;    /* เพิ่มจาก 20px */
+}
+
+.large-text .toolbar-btn,
+.large-text .toggle-btn,
+.large-text .expand-btn {
+  padding: var(--space-2) var(--space-3);
+  min-height: 48px;
+  font-size: var(--text-base);
+}
+
+.large-text .tree-node-content {
+  padding: var(--space-2) var(--space-2);
+  min-height: 48px;
+}
+
+.large-text .tree-node-label {
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.large-text .panel-title {
+  font-size: var(--text-xl);
+}
+
+/* ===== Enhanced Touch Targets ===== */
+/* เพิ่มขนาด touch targets สำหรับ mobile accessibility */
+.enhanced-touch .toolbar-btn,
+.enhanced-touch .toggle-btn,
+.enhanced-touch .expand-btn,
+.enhanced-touch .tree-node-expand {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-2);
+}
+
+.enhanced-touch .tree-node-content {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-1);
+}
+
+.enhanced-touch .resize-handle {
+  width: 12px;
+}
+
+/* ===== Screen Reader Enhancements ===== */
+/* ปรับปรุงการรองรับ screen readers */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sr-only-focusable:focus {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: inherit !important;
+  margin: inherit !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: inherit !important;
+}
+
+/* ===== Skip Links ===== */
+/* เพิ่ม skip links สำหรับ keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--bg-tertiary, #2d2d30);
+  color: var(--text-primary, #cccccc);
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  border: 2px solid var(--focus-color, #4fc3f7);
+  z-index: 9999;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* ===== Keyboard Navigation Indicators ===== */
+/* เพิ่ม visual indicators สำหรับ keyboard navigation */
+.keyboard-navigation .tree-node[tabindex="0"] {
+  position: relative;
+}
+
+.keyboard-navigation .tree-node[tabindex="0"]::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--focus-color, #4fc3f7);
+  opacity: 0;
+  transition: opacity var(--transition-fast, 150ms ease);
+}
+
+.keyboard-navigation .tree-node[tabindex="0"]:focus::before {
+  opacity: 1;
+}
+
+/* ===== Error and Status Announcements ===== */
+/* สำหรับการแจ้งเตือนที่ screen readers อ่านได้ */
+.live-region {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.status-message {
+  background: var(--bg-quaternary, #3e3e42);
+  border: 1px solid var(--border-color, #3e3e42);
+  border-radius: 4px;
+  padding: var(--space-2);
+  margin: var(--space-1) 0;
+  color: var(--text-primary, #cccccc);
+}
+
+.status-message.success {
+  border-color: var(--c4-level2, #2E7D32);
+  background: rgba(46, 125, 50, 0.1);
+}
+
+.status-message.warning {
+  border-color: var(--c4-level3, #F57C00);
+  background: rgba(245, 124, 0, 0.1);
+}
+
+.status-message.error {
+  border-color: #da3633;
+  background: rgba(218, 54, 51, 0.1);
+}
+
+/* ===== Color Blind Friendly Patterns ===== */
+/* เพิ่ม patterns สำหรับผู้ที่มีปัญหาการมองเห็นสี */
+.colorblind-friendly .tree-node.level1::before {
+  content: '●';
+  color: var(--c4-level1, #0B61A4);
+  margin-right: var(--space-1);
+}
+
+.colorblind-friendly .tree-node.level2::before {
+  content: '■';
+  color: var(--c4-level2, #2E7D32);
+  margin-right: var(--space-1);
+}
+
+.colorblind-friendly .tree-node.level3::before {
+  content: '▲';
+  color: var(--c4-level3, #F57C00);
+  margin-right: var(--space-1);
+}
+
+.colorblind-friendly .tree-node.level4::before {
+  content: '◆';
+  color: var(--c4-level4, #616161);
+  margin-right: var(--space-1);
+}
+
+/* ===== Responsive Accessibility ===== */
+/* ปรับ accessibility สำหรับหน้าจอขนาดต่างๆ */
+@media (max-width: 768px) {
+  .enhanced-touch .toolbar-btn,
+  .enhanced-touch .toggle-btn,
+  .enhanced-touch .expand-btn {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .large-text .toolbar-btn {
+    font-size: var(--text-lg);
+  }
+
+  .high-contrast .tree-node,
+  .high-contrast .toolbar-btn {
+    border-width: 3px;
+  }
+}
+
+/* ===== Print Accessibility ===== */
+/* ปรับการแสดงผลสำหรับการพิมพ์ */
+@media print {
+  .high-contrast {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #000000;
+    --border-color: #000000;
+  }
+
+  .skip-link,
+  .live-region {
+    display: none !important;
+  }
+
+  .tree-node,
+  .toolbar-btn {
+    border: 1px solid #000000 !important;
+    background: transparent !important;
+  }
+}
+
+/* ===== Browser Specific Accessibility ===== */
+/* ปรับแต่งสำหรับ browser ต่างๆ */
+
+/* Firefox specific */
+@-moz-document url-prefix() {
+  .enhanced-focus *:focus-visible {
+    outline: 3px solid var(--focus-color, #4fc3f7);
+    outline-offset: 1px;
+  }
+}
+
+/* Safari specific */
+@supports (-webkit-appearance: none) {
+  .enhanced-focus *:focus-visible {
+    outline: 3px solid var(--focus-color, #4fc3f7);
+    outline-offset: 2px;
+    -webkit-focus-ring-color: transparent;
+  }
+}
+
+/* ===== Accessibility Utilities ===== */
+/* Helper classes สำหรับ accessibility */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.focusable {
+  cursor: pointer;
+  outline: none;
+}
+
+.focusable:focus-visible {
+  outline: 2px solid var(--focus-color, #4fc3f7);
+  outline-offset: 2px;
+}
+
+.no-focus-outline {
+  outline: none !important;
+}
+
+.high-contrast-border {
+  border: 1px solid currentColor;
+}
+
+.accessible-color {
+  color: var(--text-primary, #cccccc);
+  background-color: var(--bg-secondary, #252526);
+}
+
+/* ===== Animation Preferences ===== */
+/* รองรับการตั้งค่า animation preferences ของ browser */
+@media (prefers-reduced-motion: reduce) {
+  .respect-motion-preference * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced-animations .tree-node,
+  .enhanced-animations .toolbar-btn {
+    transition: all var(--transition-fast, 150ms ease), 
+                transform var(--transition-fast, 150ms ease),
+                box-shadow var(--transition-fast, 150ms ease);
+  }
+}
+
+/* ===== Contrast Preferences ===== */
+/* รองรับการตั้งค่า contrast preferences ของ browser */
+@media (prefers-contrast: high) {
+  .respect-contrast-preference {
+    --border-color: currentColor;
+    --focus-color: #ffff00;
+  }
+
+  .respect-contrast-preference .tree-node,
+  .respect-contrast-preference .toolbar-btn {
+    border: 2px solid currentColor;
+  }
+}
+
+@media (prefers-contrast: low) {
+  .respect-contrast-preference {
+    --border-color: rgba(255, 255, 255, 0.2);
+  }
+}

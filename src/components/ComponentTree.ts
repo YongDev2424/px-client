@@ -244,12 +244,9 @@ export class ComponentTree {
     nodeElement.setAttribute('aria-selected', 'false');
     nodeElement.setAttribute('tabindex', '0');
 
-    // สร้าง content
+    // สร้าง content (ลบไอคอนออก)
     nodeElement.innerHTML = `
       <div class="tree-node-content">
-        <div class="tree-node-icon">
-          ${this.getComponentIcon(component.type)}
-        </div>
         <div class="tree-node-label" title="${component.name}">
           ${component.name}
         </div>
@@ -319,18 +316,7 @@ export class ComponentTree {
     }
   }
 
-  /**
-   * ได้ icon สำหรับ component type
-   */
-  private getComponentIcon(type: string): string {
-    const iconMap = {
-      person: '👤',
-      system: '🏢',
-      container: '📦',
-      component: '⚙️'
-    };
-    return iconMap[type as keyof typeof iconMap] || '📋';
-  }
+
 
   /**
    * แสดง empty state เมื่อไม่มี components

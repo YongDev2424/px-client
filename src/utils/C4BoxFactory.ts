@@ -26,12 +26,12 @@ export class C4BoxFactory {
     enhanced: boolean = true
   ): Container {
     
-    // แมป C4 type เป็น level และสี
+    // แมป C4 type เป็น level (ไม่ใช้สีแล้วเพราะทุก node เป็น outlined)
     const typeMapping = {
-      person: { level: 'level1' as const, color: 0x0B61A4 },
-      system: { level: 'level2' as const, color: 0x2E7D32 },
-      container: { level: 'level3' as const, color: 0xF57C00 },
-      component: { level: 'level4' as const, color: 0x616161 }
+      person: { level: 'level1' as const, color: 0x1e1e1e }, // ใช้สีเดียวกับ canvas
+      system: { level: 'level2' as const, color: 0x1e1e1e }, // ใช้สีเดียวกับ canvas
+      container: { level: 'level3' as const, color: 0x1e1e1e }, // ใช้สีเดียวกับ canvas
+      component: { level: 'level4' as const, color: 0x1e1e1e } // ใช้สีเดียวกับ canvas
     };
     
     const mapping = typeMapping[type];
@@ -40,13 +40,13 @@ export class C4BoxFactory {
       return this.createEnhancedC4Box(app, name, 'person', enhanced);
     }
     
-    // สร้าง style options สำหรับ level นี้
+    // สร้าง style options สำหรับ level นี้ (ปิดไอคอน)
     const styleOptions: C4StyleOptions = enhanced ? 
       C4ThemeHelper.createStyleOptionsForLevel(mapping.level, {
         enableEnhancedStyling: true,
         enableRoundedCorners: true,
         enableShadows: true,
-        enableIcons: true,
+        enableIcons: false, // ปิดไอคอน
         cornerRadius: 8,
         shadowOffset: { x: 2, y: 2 },
         shadowBlur: 4

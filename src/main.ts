@@ -4,10 +4,21 @@ import { createC4Box } from './components/C4Box';
 import './style.css';
 import { stageManager } from './utils/stageManager';
 import { LayoutManager } from './layout/LayoutManager';
+import { ThemeManager } from './utils/ThemeManager';
+
+// Import theme testing utilities (development only)
+if (import.meta.env.DEV) {
+  import('./utils/theme-test').then(({ runAllThemeTests }) => {
+    // Make theme tests available in console
+    (window as any).runThemeTests = runAllThemeTests;
+    console.log('🧪 Theme tests available: run `runThemeTests()` in console');
+  });
+}
 
 // --- Initialize Layout System ---
 let layoutManager: LayoutManager;
 let leftPanel: any; // Will be imported from LeftPanel
+let themeManager: ThemeManager;
 
 function initializeLayout() {
   try {
@@ -19,6 +30,38 @@ function initializeLayout() {
   }
 }
 
+// --- Initialize Theme System ---
+function initializeTheme() {
+  try {
+    themeManager = ThemeManager.getInstance();
+    
+    // Sync with browser preferences on startup
+    themeManager.syncWithBrowserPreferences();
+    
+    // Set up theme change listeners
+    document.addEventListener('themeChanged', (e) => {
+      console.log('🎨 Theme changed:', e.detail.theme.name);
+      
+      // Update PixiJS background color based on theme
+      if (app && app.renderer) {
+        const isEnhanced = e.detail.isEnhanced;
+        const bgColor = isEnhanced ? 0x0d1117 : 0x181818; // Enhanced vs default (อ่อนกว่า Node)
+        app.renderer.background.color = bgColor;
+      }
+    });
+    
+    document.addEventListener('accessibilityChanged', (e) => {
+      console.log('♿ Accessibility settings changed:', e.detail.settings);
+    });
+    
+    console.log('✅ Theme Manager initialized successfully');
+    console.log('🎨 Current theme:', themeManager.getCurrentTheme()?.name);
+    console.log('♿ Accessibility settings:', themeManager.getAccessibilitySettings());
+  } catch (error) {
+    console.error('❌ Failed to initialize Theme Manager:', error);
+  }
+}
+
 // --- Update Canvas Size ---
 function updateCanvasSize() {
   if (!layoutManager) return;
@@ -26,6 +69,11 @@ function updateCanvasSize() {
   const canvasArea = layoutManager.getCanvasArea();
   if (app && app.renderer) {
     app.renderer.resize(canvasArea.width, canvasArea.height);
+    
+    // อัพเดท grid dots เมื่อ canvas เปลี่ยนขนาด
+    if (gridDots) {
+      gridDots.updateGrid(canvasArea.width, canvasArea.height);
+    }
   }
 }
 
@@ -44,7 +92,7 @@ const app = new Application();
 await app.init({
   width,
   height,
-  backgroundColor: 0x1e1e1e, // Match CSS --bg-primary
+  backgroundColor: 0x181818, // อ่อนกว่า Node เล็กน้อย (Node จะเป็น 0x1e1e1e)
   antialias: true,
 });
 
@@ -53,6 +101,9 @@ canvasContainer.appendChild(app.canvas);
 
 // --- Initialize Layout System ---
 initializeLayout();
+
+// --- Initialize Theme System ---
+initializeTheme();
 
 // --- Initialize Canvas Container (Optional Enhancement) ---
 let canvasContainerEnhancement: any = null;
@@ -123,11 +174,39 @@ initializeLeftPanel();
 stageManager.initialize(app);
 console.log('🎯 Edge System พร้อมใช้งาน - คลิกที่จุดเชื่อมต่อเพื่อสร้าง Edge!');
 
+// --- Initialize Grid Dots ---
+let gridDots: any = null;
+
+async function initializeGridDots() {
+  try {
+    const { createGridDots } = await import('./components/GridDots');
+    
+    // สร้าง grid dots ด้วยการตั้งค่าที่เหมาะสม
+    gridDots = createGridDots(app.screen.width, app.screen.height, {
+      dotSize: 1.5,        // ขนาดจุดเล็กๆ
+      spacing: 30,         // ระยะห่าง 30px
+      dotColor: 0xFFFFFF,  // สีขาว
+      dotAlpha: 0.12       // โปร่งใสเล็กน้อย
+    });
+    
+    // เพิ่ม grid dots เป็น layer แรก (ด้านหลังสุด)
+    app.stage.addChildAt(gridDots.getContainer(), 0);
+    
+    console.log('✅ Grid dots initialized successfully');
+    console.log('📊 Grid settings:', gridDots.getSettings());
+  } catch (error) {
+    console.error('❌ Failed to initialize grid dots:', error);
+  }
+}
+
+// Initialize Grid Dots after app is ready
+initializeGridDots();
+
 // --- Connect HTML Buttons to PixiJS ---
 
 // Helper function to create C4Box and add to tree
-function createAndAddC4Box(name: string, color: number, type: string): void {
-  const newBox = createC4Box(app, name, color);
+function createAndAddC4Box(name: string, type: string): void {
+  const newBox = createC4Box(app, name, 0x1e1e1e); // Node เข้มกว่า canvas (0x181818) เล็กน้อย
   
   // Set node type in metadata for proper tree categorization
   const nodeData = (newBox as any).nodeData;
@@ -170,7 +249,7 @@ async function createAndAddEnhancedC4Box(name: string, type: 'person' | 'system'
   } catch (error) {
     console.error('❌ Failed to create enhanced C4Box:', error);
     // Fallback to standard creation
-    createAndAddC4Box(name, 0x4A90E2, type);
+    createAndAddC4Box(name, type);
   }
 }
 
@@ -250,6 +329,56 @@ if (!demoButton) {
   demoButton.addEventListener('click', createEnhancementDemo);
 }
 
+// Add Theme Toggle Button for testing theme system
+const themeToggleButton = document.getElementById('theme-toggle-btn');
+if (!themeToggleButton) {
+  // Create theme toggle button if it doesn't exist
+  const toolbar = document.querySelector('.toolbar');
+  if (toolbar) {
+    const newThemeButton = document.createElement('button');
+    newThemeButton.id = 'theme-toggle-btn';
+    newThemeButton.textContent = '🌙 Enhanced Theme';
+    newThemeButton.className = 'toolbar-button';
+    newThemeButton.title = 'Toggle Enhanced Dark Theme (WCAG AAA)';
+    
+    // Update button text based on current theme
+    const updateThemeButtonText = () => {
+      if (themeManager) {
+        const isEnhanced = themeManager.isEnhancedThemeEnabled();
+        newThemeButton.textContent = isEnhanced ? '🌙 Default Theme' : '🌙 Enhanced Theme';
+        newThemeButton.title = isEnhanced 
+          ? 'Switch to Default Theme (WCAG AA)' 
+          : 'Switch to Enhanced Theme (WCAG AAA)';
+      }
+    };
+    
+    newThemeButton.addEventListener('click', () => {
+      if (themeManager) {
+        const isEnhanced = themeManager.isEnhancedThemeEnabled();
+        themeManager.enableEnhancedTheme(!isEnhanced);
+        updateThemeButtonText();
+        console.log(`🎨 Theme switched to: ${!isEnhanced ? 'Enhanced' : 'Default'}`);
+      }
+    });
+    
+    // Listen for theme changes from other sources
+    document.addEventListener('themeChanged', updateThemeButtonText);
+    
+    toolbar.appendChild(newThemeButton);
+    console.log('✅ Added theme toggle button to toolbar');
+    
+    // Set initial button text
+    setTimeout(updateThemeButtonText, 100);
+  }
+} else {
+  themeToggleButton.addEventListener('click', () => {
+    if (themeManager) {
+      const isEnhanced = themeManager.isEnhancedThemeEnabled();
+      themeManager.enableEnhancedTheme(!isEnhanced);
+    }
+  });
+}
+
 // --- Handle Layout Canvas Resize Events ---
 window.addEventListener('layout-canvas-resize', () => {
   updateCanvasSize();
@@ -269,5 +398,11 @@ window.addEventListener('beforeunload', () => {
   }
   if (zoomControls && zoomControls.destroy) {
     zoomControls.destroy();
+  }
+  if (themeManager && themeManager.destroy) {
+    themeManager.destroy();
+  }
+  if (gridDots && gridDots.destroy) {
+    gridDots.destroy();
   }
 });
