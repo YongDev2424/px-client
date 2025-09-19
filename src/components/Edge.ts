@@ -151,6 +151,9 @@ function createArrowHead(tipPosition: Point, angle: number, size: number = 10, c
  * @param lineColor - สีของเส้น (ค่าเริ่มต้น สีดำ)
  * @param lineWidth - ความหนาของเส้น (ค่าเริ่มต้น 2)
  * @param showArrow - แสดงลูกศรหรือไม่ (ค่าเริ่มต้น true)
+ * @param sourceSide - ด้านของ source node (optional)
+ * @param targetSide - ด้านของ target node (optional)
+ * @param enhanced - เปิดใช้การปรับปรุงรูปแบบหรือไม่ (ค่าเริ่มต้น false)
  * @returns Container ที่ประกอบด้วยเส้น, ลูกศร และ Label
  */
 export function createEdge(
@@ -161,7 +164,8 @@ export function createEdge(
   lineWidth: number = 2,
   showArrow: boolean = true,
   sourceSide?: string,
-  targetSide?: string
+  targetSide?: string,
+  enhanced: boolean = false
 ): Container {
   // สร้าง Container หลักสำหรับ Edge
   const edgeContainer = new Container();
@@ -257,6 +261,19 @@ export function createEdge(
     sourceSide: sourceSide,    // เก็บ side ของ source
     targetSide: targetSide     // เก็บ side ของ target
   };
+  
+  // 🎨 ADDITIVE ENHANCEMENT: เพิ่มการปรับปรุงรูปแบบแบบ optional
+  if (enhanced) {
+    // Import EdgeStyler แบบ dynamic เพื่อไม่ให้กระทบกับ existing code
+    import('./EdgeStyler').then(({ EdgeStyler }) => {
+      import('../utils/EdgeThemes').then(({ EdgeThemes }) => {
+        EdgeStyler.enhanceExistingEdge(edgeContainer, EdgeThemes.default);
+      });
+    }).catch(error => {
+      console.warn('⚠️ ไม่สามารถโหลด EdgeStyler ได้:', error);
+      // Edge ยังคงทำงานได้ปกติแม้ไม่มี enhancement
+    });
+  }
   
   return edgeContainer;
 }
@@ -428,4 +445,75 @@ export function isEdgeConnectedToNode(edgeContainer: Container, node: Container)
   console.log('   - ผลลัพธ์:', isConnected);
   
   return isConnected;
+}
+
+/**
+ * 🎨 ENHANCED EDGE CREATION - สร้าง Edge พร้อมการปรับปรุงรูปแบบ
+ * Helper function สำหรับการสร้าง Edge ที่มีรูปแบบสวยงาม
+ * @param sourceNode - Node ต้นทาง
+ * @param targetNode - Node ปลายทาง
+ * @param labelText - ข้อความ Label
+ * @param relationshipType - ประเภทความสัมพันธ์ (เพื่อเลือก theme)
+ * @param sourceSide - ด้านของ source node
+ * @param targetSide - ด้านของ target node
+ * @returns Container ของ Edge ที่ปรับปรุงแล้ว
+ */
+export function createEnhancedEdge(
+  sourceNode: Container,
+  targetNode: Container,
+  labelText: string = 'relationship',
+  relationshipType: string = 'default',
+  sourceSide?: string,
+  targetSide?: string
+): Container {
+  // สร้าง Edge พื้นฐานก่อน
+  const edge = createEdge(
+    sourceNode,
+    targetNode,
+    labelText,
+    0x000000, // สีเริ่มต้น (จะถูกแทนที่โดย theme)
+    2,        // ความหนาเริ่มต้น (จะถูกแทนที่โดย theme)
+    true,     // แสดงลูกศร
+    sourceSide,
+    targetSide,
+    false     // ไม่ใช้ auto enhancement เพื่อให้เราควบคุมเอง
+  );
+  
+  // เพิ่ม enhancement แบบ manual พร้อม theme ที่เหมาะสม
+  import('./EdgeStyler').then(({ EdgeStyler }) => {
+    import('../utils/EdgeThemes').then(({ getThemeForRelationship }) => {
+      const theme = getThemeForRelationship(relationshipType);
+      EdgeStyler.enhanceExistingEdge(edge, theme);
+      
+      console.log(`✨ สร้าง Enhanced Edge สำเร็จ (theme: ${relationshipType})`);
+    });
+  }).catch(error => {
+    console.warn('⚠️ ไม่สามารถโหลด EdgeStyler ได้:', error);
+  });
+  
+  return edge;
+}
+
+/**
+ * 🔄 RETROFIT ENHANCEMENT - เพิ่มการปรับปรุงให้กับ Edge ที่มีอยู่แล้ว
+ * @param existingEdge - Edge Container ที่มีอยู่แล้ว
+ * @param relationshipType - ประเภทความสัมพันธ์ (เพื่อเลือก theme)
+ * @returns Promise ที่ resolve เมื่อปรับปรุงเสร็จ
+ */
+export async function enhanceExistingEdge(
+  existingEdge: Container,
+  relationshipType: string = 'default'
+): Promise<void> {
+  try {
+    const { EdgeStyler } = await import('./EdgeStyler');
+    const { getThemeForRelationship } = await import('../utils/EdgeThemes');
+    
+    const theme = getThemeForRelationship(relationshipType);
+    EdgeStyler.enhanceExistingEdge(existingEdge, theme);
+    
+    console.log(`✨ ปรับปรุง Edge เดิมสำเร็จ (theme: ${relationshipType})`);
+  } catch (error) {
+    console.warn('⚠️ ไม่สามารถปรับปรุง Edge ได้:', error);
+    throw error;
+  }
 }
