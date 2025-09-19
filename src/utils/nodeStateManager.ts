@@ -97,7 +97,7 @@ class NodeStateManager {
 
     // Dispatch event สำหรับ UI updates
     if (previousState !== collapsed) {
-      this.dispatchNodeStateChangeEvent(node, 'collapse', { 
+      this.dispatchNodeStateChangeEvent(node, 'collapse', {
         isCollapsed: collapsed,
         previousState: previousState
       });
@@ -160,7 +160,7 @@ class NodeStateManager {
 
     // Dispatch event สำหรับ UI updates
     if (previousState !== editing) {
-      this.dispatchNodeStateChangeEvent(node, 'editing', { 
+      this.dispatchNodeStateChangeEvent(node, 'editing', {
         isEditing: editing,
         previousState: previousState
       });
@@ -186,7 +186,7 @@ class NodeStateManager {
    */
   exitAllEditingModes(excludeNode?: Container): void {
     let exitedCount = 0;
-    
+
     this.nodeStates.forEach((state, node) => {
       if (state.isEditing && node !== excludeNode) {
         this.setEditing(node, false);
@@ -232,7 +232,7 @@ class NodeStateManager {
     this.syncPropertiesToNodeData(node);
 
     // Dispatch event สำหรับ UI updates
-    this.dispatchNodeStateChangeEvent(node, 'property-added', { 
+    this.dispatchNodeStateChangeEvent(node, 'property-added', {
       property: property,
       propertyCount: state.properties.size
     });
@@ -267,7 +267,7 @@ class NodeStateManager {
     this.syncPropertiesToNodeData(node);
 
     // Dispatch event สำหรับ UI updates
-    this.dispatchNodeStateChangeEvent(node, 'property-removed', { 
+    this.dispatchNodeStateChangeEvent(node, 'property-removed', {
       property: property,
       propertyCount: state.properties.size
     });
@@ -308,7 +308,7 @@ class NodeStateManager {
     this.syncPropertiesToNodeData(node);
 
     // Dispatch event สำหรับ UI updates
-    this.dispatchNodeStateChangeEvent(node, 'property-updated', { 
+    this.dispatchNodeStateChangeEvent(node, 'property-updated', {
       property: property,
       oldValue: oldValue,
       newValue: newValue
@@ -374,7 +374,7 @@ class NodeStateManager {
 
     // Dispatch event สำหรับ UI updates
     if (previousState !== visible) {
-      this.dispatchNodeStateChangeEvent(node, 'action-buttons', { 
+      this.dispatchNodeStateChangeEvent(node, 'action-buttons', {
         visible: visible,
         previousState: previousState
       });

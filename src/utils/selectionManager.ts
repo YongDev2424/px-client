@@ -86,6 +86,13 @@ class SelectionManager {
       this.deselectElement(element);
     });
 
+    // ซ่อน toolbar action buttons เมื่อไม่มี element ถูกเลือก
+    if (elementsToDeselect.length > 0) {
+      if ((window as any).toolbarActionButtons) {
+        (window as any).toolbarActionButtons.hide();
+      }
+    }
+
     // Dispatch event for ComponentTree sync
     if (elementsToDeselect.length > 0) {
       const event = new CustomEvent('selection-cleared');
@@ -177,6 +184,98 @@ class SelectionManager {
   }
 
   /**
+   * อัปเดต SelectableElement ที่มีอยู่แล้วให้รองรับ enhanced nodes
+   * เรียกใช้เมื่อ node ถูก enhance หลังจากที่ถูกทำให้ selectable แล้ว
+   * @param container - Container ที่ถูก enhance
+   */
+  updateSelectableForEnhancedNode(container: Container): void {
+    const selectableElement = (container as any).selectableElement as SelectableElement;
+    if (!selectableElement) {
+      console.warn('Container is not selectable, cannot update for enhanced node');
+      return;
+    }
+
+    const nodeEnhancer = (container as any).nodeEnhancer;
+    if (!nodeEnhancer) {
+      console.warn('Container does not have NodeEnhancer, cannot update');
+      return;
+    }
+
+    // เก็บ original callbacks
+    const originalOnSelect = selectableElement.onSelect;
+    const originalOnDeselect = selectableElement.onDeselect;
+
+    // สร้าง enhanced callbacks
+    selectableElement.onSelect = () => {
+      // เรียก original callback ก่อน (ถ้ามี)
+      if (originalOnSelect) {
+        originalOnSelect();
+      }
+
+      // จัดการ action buttons สำหรับ enhanced nodes
+      const actionButtons = nodeEnhancer.getActionButtons?.();
+      if (actionButtons) {
+        actionButtons.show();
+        console.log('🎯 Enhanced node selected - showing action buttons');
+      }
+
+      // ส่ง enhanced selection event
+      const event = new CustomEvent('pixi-selection-change', {
+        detail: {
+          container: container,
+          action: 'select',
+          isEnhanced: true
+        }
+      });
+      window.dispatchEvent(event);
+    };
+
+    selectableElement.onDeselect = () => {
+      // เรียก original callback ก่อน (ถ้ามี)
+      if (originalOnDeselect) {
+        originalOnDeselect();
+      }
+
+      // จัดการ action buttons สำหรับ enhanced nodes
+      const actionButtons = nodeEnhancer.getActionButtons?.();
+      if (actionButtons) {
+        actionButtons.hide();
+        console.log('⭕ Enhanced node deselected - hiding action buttons');
+      }
+
+      // ส่ง enhanced deselection event
+      const event = new CustomEvent('pixi-selection-change', {
+        detail: {
+          container: container,
+          action: 'deselect',
+          isEnhanced: true
+        }
+      });
+      window.dispatchEvent(event);
+    };
+
+    console.log('🔄 Updated SelectableElement for enhanced node');
+  }
+
+  /**
+   * ตรวจสอบว่า container เป็น enhanced node หรือไม่
+   * @param container - Container ที่ต้องการตรวจสอบ
+   * @returns true ถ้าเป็น enhanced node
+   */
+  isEnhancedNode(container: Container): boolean {
+    return !!(container as any).nodeEnhancer;
+  }
+
+  /**
+   * ได้ SelectableElement จาก container
+   * @param container - Container ที่ต้องการหา SelectableElement
+   * @returns SelectableElement หรือ null ถ้าไม่พบ
+   */
+  getSelectableElement(container: Container): SelectableElement | null {
+    return (container as any).selectableElement || null;
+  }
+
+  /**
    * ทำความสะอาด selection manager
    */
   destroy(): void {
@@ -200,6 +299,7 @@ export const selectionManager = new SelectionManager();
 
 /**
  * Helper function สำหรับเพิ่ม selection capability ให้กับ Container
+ * พร้อม ToolbarActionButtons ที่แสดงใน toolbar เมื่อเลือก
  * @param container - Container ที่ต้องการทำให้ selectable
  * @param options - ตัวเลือกการตั้งค่า
  * @returns SelectableElement object
@@ -212,10 +312,63 @@ export function makeSelectable(
     selectOnClick?: boolean;
   } = {}
 ): SelectableElement {
+  // สร้าง selection callbacks
+  const enhancedOnSelect = () => {
+    // เรียก original callback ก่อน
+    options.onSelect?.();
+
+    // แสดง toolbar action buttons สำหรับ C4Box
+    const isC4Box = (container as any).nodeData && (container as any).nodeData.nodeType === 'c4box';
+    if (isC4Box) {
+      // ใช้ global reference แทน dynamic import
+      if ((window as any).toolbarActionButtons) {
+        (window as any).toolbarActionButtons.show(container);
+        console.log('🎯 C4Box selected - showing toolbar action buttons');
+      } else {
+        console.warn('⚠️ ToolbarActionButtons not available');
+      }
+    }
+
+    // ส่ง selection event
+    const event = new CustomEvent('pixi-selection-change', {
+      detail: {
+        container: container,
+        action: 'select',
+        isC4Box: isC4Box
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const enhancedOnDeselect = () => {
+    // เรียก original callback ก่อน
+    options.onDeselect?.();
+
+    // ซ่อน toolbar action buttons สำหรับ C4Box
+    const isC4Box = (container as any).nodeData && (container as any).nodeData.nodeType === 'c4box';
+    if (isC4Box) {
+      // ใช้ global reference แทน dynamic import
+      if ((window as any).toolbarActionButtons) {
+        (window as any).toolbarActionButtons.hide();
+        console.log('⭕ C4Box deselected - hiding toolbar action buttons');
+      }
+    }
+
+    // ส่ง deselection event
+    const event = new CustomEvent('pixi-selection-change', {
+      detail: {
+        container: container,
+        action: 'deselect',
+        isC4Box: isC4Box
+      }
+    });
+    window.dispatchEvent(event);
+  };
+
   const element: SelectableElement = {
     container,
-    onSelect: options.onSelect,
-    onDeselect: options.onDeselect,
+    onSelect: enhancedOnSelect,
+    onDeselect: enhancedOnDeselect,
     isSelected: false
   };
 

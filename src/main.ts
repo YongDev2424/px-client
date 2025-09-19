@@ -5,6 +5,7 @@ import './style.css';
 import { stageManager } from './utils/stageManager';
 import { LayoutManager } from './layout/LayoutManager';
 import { ThemeManager } from './utils/ThemeManager';
+import { toolbarActionButtons } from './components/ToolbarActionButtons';
 
 // Import theme testing utilities (development only)
 if (import.meta.env.DEV) {
@@ -202,6 +203,98 @@ async function initializeGridDots() {
 // Initialize Grid Dots after app is ready
 initializeGridDots();
 
+// --- Initialize Toolbar Action Buttons ---
+console.log('🔧 Initializing Toolbar Action Buttons...');
+try {
+  // ToolbarActionButtons จะถูกสร้างอัตโนมัติเมื่อ import
+  // เก็บ reference ใน window เพื่อให้ SelectionManager เข้าถึงได้
+  (window as any).toolbarActionButtons = toolbarActionButtons;
+  
+  // ตรวจสอบว่าสร้างสำเร็จ
+  if (toolbarActionButtons) {
+    console.log('✅ ToolbarActionButtons instance created:', toolbarActionButtons);
+  } else {
+    console.error('❌ ToolbarActionButtons is null/undefined');
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize ToolbarActionButtons:', error);
+}
+
+// เพิ่ม debug commands ใน console
+if (import.meta.env.DEV) {
+  (window as any).debugSelection = async () => {
+    const { selectionManager } = await import('./utils/selectionManager');
+    console.log('🔍 Selection Debug:', {
+      selectedCount: selectionManager.getSelectedCount(),
+      selectedElements: selectionManager.getSelectedElements(),
+      toolbarActionButtons: (window as any).toolbarActionButtons,
+      toolbarVisible: (window as any).toolbarActionButtons?.getVisibility()
+    });
+  };
+  
+  (window as any).testToolbarButtons = () => {
+    const c4boxes = app.stage.children.filter(child => 
+      (child as any).nodeData && (child as any).nodeData.nodeType === 'c4box'
+    );
+    
+    if (c4boxes.length > 0) {
+      console.log('🧪 Testing toolbar buttons with first C4Box...');
+      (window as any).toolbarActionButtons.show(c4boxes[0]);
+    } else {
+      console.log('❌ No C4Box found. Create one first.');
+    }
+  };
+  
+  // เพิ่มฟังก์ชันทดสอบ manual
+  (window as any).manualShowToolbar = () => {
+    const toolbar = document.getElementById('toolbar');
+    if (!toolbar) {
+      console.error('❌ Toolbar not found');
+      return;
+    }
+    
+    // สร้าง action section manually
+    let actionSection = document.getElementById('toolbar-action-section');
+    if (!actionSection) {
+      actionSection = document.createElement('div');
+      actionSection.className = 'toolbar-action-section visible';
+      actionSection.id = 'toolbar-action-section';
+      actionSection.innerHTML = `
+        <span class="action-status-text" style="color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-right: 8px;">Selected: Test Node</span>
+        <button class="toolbar-btn toolbar-btn-edit" title="Edit Selected Element">
+          <span class="btn-icon">✏️</span>
+          <span class="btn-label">Edit</span>
+        </button>
+        <button class="toolbar-btn toolbar-btn-delete" title="Delete Selected Element">
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-label">Delete</span>
+        </button>
+      `;
+      toolbar.appendChild(actionSection);
+      console.log('✅ Manual toolbar section created');
+    } else {
+      actionSection.classList.add('visible');
+      console.log('✅ Manual toolbar section shown');
+    }
+  };
+  
+  (window as any).manualHideToolbar = () => {
+    const actionSection = document.getElementById('toolbar-action-section');
+    if (actionSection) {
+      actionSection.classList.remove('visible');
+      console.log('✅ Manual toolbar section hidden');
+    }
+  };
+  
+  console.log('🧪 Debug commands available:');
+  console.log('  - debugSelection() - Show selection state');
+  console.log('  - testToolbarButtons() - Test toolbar buttons');
+  console.log('  - manualShowToolbar() - Manually show toolbar buttons');
+  console.log('  - manualHideToolbar() - Manually hide toolbar buttons');
+}
+
+console.log('✅ Toolbar Action Buttons initialized successfully');
+
 // --- Connect HTML Buttons to PixiJS ---
 
 // Helper function to create C4Box and add to tree
@@ -227,31 +320,19 @@ function createAndAddC4Box(name: string, type: string): void {
   console.log(`เพิ่ม ${name} Node ใหม่และเพิ่มเข้า ComponentTree`);
 }
 
-// Enhanced helper function using C4BoxFactory
-async function createAndAddEnhancedC4Box(name: string, type: 'person' | 'system' | 'container' | 'component'): Promise<void> {
+// Helper function to create C4Box with built-in action buttons
+async function createAndAddC4BoxWithActions(name: string, type: 'person' | 'system' | 'container' | 'component'): Promise<void> {
   try {
-    const { C4BoxFactory } = await import('./utils/C4BoxFactory');
-    
-    // สร้าง enhanced C4Box
-    const newBox = C4BoxFactory.createEnhancedC4Box(app, name, type, true);
-    
-    app.stage.addChild(newBox);
-    
-    // Add to ComponentTree if available
-    if (leftPanel && leftPanel.getComponentTree) {
-      const componentTree = leftPanel.getComponentTree();
-      if (componentTree) {
-        componentTree.addComponentFromPixiNode(newBox);
-      }
-    }
-    
-    console.log(`✨ เพิ่ม Enhanced ${name} Node ใหม่และเพิ่มเข้า ComponentTree`);
-  } catch (error) {
-    console.error('❌ Failed to create enhanced C4Box:', error);
-    // Fallback to standard creation
+    // สร้าง C4Box ปกติ
     createAndAddC4Box(name, type);
+    
+    console.log(`✨ เพิ่ม ${name} Node ใหม่พร้อม Action Buttons`);
+  } catch (error) {
+    console.error('❌ Failed to create C4Box with actions:', error);
   }
 }
+
+
 
 // Demo function to test enhancement system
 async function createEnhancementDemo(): Promise<void> {
@@ -287,28 +368,28 @@ async function createEnhancementDemo(): Promise<void> {
   }
 }
 
-// Add Person Button - Enhanced Version
+// Add Person Button
 const addPersonButton = document.getElementById('add-person-btn');
 addPersonButton?.addEventListener('click', () => {
-  createAndAddEnhancedC4Box('Person', 'person');
+  createAndAddC4BoxWithActions('Person', 'person');
 });
 
-// Add System Button - Enhanced Version
+// Add System Button
 const addSystemButton = document.getElementById('add-system-btn');
 addSystemButton?.addEventListener('click', () => {
-  createAndAddEnhancedC4Box('Software System', 'system');
+  createAndAddC4BoxWithActions('Software System', 'system');
 });
 
-// Add Container Button - Enhanced Version
+// Add Container Button
 const addContainerButton = document.getElementById('add-container-btn');
 addContainerButton?.addEventListener('click', () => {
-  createAndAddEnhancedC4Box('Container', 'container');
+  createAndAddC4BoxWithActions('Container', 'container');
 });
 
-// Add Component Button - Enhanced Version
+// Add Component Button
 const addComponentButton = document.getElementById('add-component-btn');
 addComponentButton?.addEventListener('click', () => {
-  createAndAddEnhancedC4Box('Component', 'component');
+  createAndAddC4BoxWithActions('Component', 'component');
 });
 
 // Add Demo Button for testing enhancements
@@ -328,6 +409,8 @@ if (!demoButton) {
 } else {
   demoButton.addEventListener('click', createEnhancementDemo);
 }
+
+
 
 // Add Theme Toggle Button for testing theme system
 const themeToggleButton = document.getElementById('theme-toggle-btn');
