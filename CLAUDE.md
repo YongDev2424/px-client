@@ -82,6 +82,12 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Run tests (Function-based architecture tests included)
+npm test
+
+# Run specific test
+npm test -- functionBasedArchitecture
 ```
 
 ## Architecture
@@ -91,49 +97,153 @@ npm run preview
 - **TypeScript**: Type-safe JavaScript with strict mode enabled
 - **Vite**: Build tool and development server
 - **Tailwind CSS v4**: Styling framework
+- **Zustand v5**: Function-based state management (vanilla stores)
 
-### Project Structure
+### 🏗️ Function-Based Architecture (NEW)
+โปรเจคได้เปลี่ยนจาก Class-based เป็น Function-based architecture เต็มรูปแบบ:
+
+#### State Management Architecture
 ```
 src/
-├── main.ts                 # Application entry point and event handling
-├── components/             # Reusable PixiJS components
-│   ├── C4Box.ts           # Main C4 diagram box component
-│   └── C4Label.ts         # Text label component for boxes
-├── utils/                 # Utility functions
-│   └── draggable.ts       # Drag and drop functionality
-└── style.css              # Global styles
+├── stores/                 # Zustand vanilla stores (Function-based)
+│   ├── nodeState.ts       # Node state management (แทน NodeStateManager)
+│   ├── selectionState.ts  # Selection state management (แทน SelectionManager)
+│   ├── themeState.ts      # Theme & accessibility state (แทน ThemeManager)
+│   └── index.ts           # Store aggregation และ initialization
+├── composables/            # Custom hooks และ actions
+│   ├── useNodeActions.ts  # Node manipulation actions
+│   ├── useSelectionActions.ts # Selection management actions
+│   ├── useThemeActions.ts # Theme & accessibility actions
+│   └── index.ts           # Composables aggregation
+├── factories/              # Factory functions (แทน Singleton classes)
+│   ├── zoomManager.ts     # Zoom management factory
+│   ├── layoutManager.ts   # Layout management factory
+│   └── index.ts           # Factory aggregation
+└── components/             # PixiJS components (ใช้ stores และ composables)
 ```
 
-### Key Components
+#### Key Architectural Principles
+1. **Function-First**: ทุกอย่างเป็น function แทน class
+2. **Store-Based State**: ใช้ Zustand stores สำหรับ global state
+3. **Composable Actions**: Actions แยกออกเป็น composable functions
+4. **Factory Pattern**: สร้าง instances ผ่าน factory functions
+5. **Backward Compatibility**: มี compatibility wrappers สำหรับโค้ดเดิม
 
-**C4Box** (`src/components/C4Box.ts`):
-- Creates C4 diagram boxes with graphics, labels, and connection points
-- Supports customizable colors and text
-- Automatically centers components and adds drag functionality
+### 🔧 Function-Based Development Patterns
 
-**Draggable** (`src/utils/draggable.ts`):
-- Utility for making any PixiJS Container draggable
-- Handles pointer events and offset calculations
-- Applies to entire stage for smooth interaction
+#### State Management Pattern
+```typescript
+// เก่า (Class-based)
+const nodeStateManager = NodeStateManager.getInstance();
+nodeStateManager.setCollapsed(container, true);
 
-**Main Application** (`src/main.ts`):
-- Initializes PixiJS application with full screen canvas
-- Connects HTML toolbar buttons to PixiJS component creation
-- Currently supports "Add Person" and "Add System" functionality
+// ใหม่ (Function-based)
+const nodeActions = useNodeActions(container);
+nodeActions.collapse();
 
-### Component Creation Pattern
-When creating new C4 components:
-1. Use the existing `createC4Box` function as a template
-2. Components should return PixiJS Containers for consistency
-3. Apply `makeDraggable` to enable user interaction
-4. Use the established color scheme (Person: 0x0B61A4, System: 0x242424)
+// หรือใช้ store โดยตรง
+useNodeState.getState().setCollapsed(nodeId, true);
+```
 
-### Event Handling
-- HTML buttons trigger PixiJS component creation
-- Stage-level event handling for drag operations
-- Components use `eventMode: 'static'` for interaction
+#### Component Creation Pattern (Updated)
+เมื่อสร้าง components ใหม่:
+1. **ใช้ stores สำหรับ state management**:
+   ```typescript
+   import { useNodeActions, useSelectionActions } from '../composables';
+   ```
+2. **ใช้ factory functions สำหรับ managers**:
+   ```typescript
+   import { createZoomManager } from '../factories';
+   ```
+3. **ใช้ makeSelectable สำหรับ selection**:
+   ```typescript
+   import { makeSelectable } from '../stores/selectionState';
+   ```
+4. **Components ควร return PixiJS Containers** เหมือนเดิม
+5. **ใช้ established color scheme** เหมือนเดิม (Person: 0x0B61A4, System: 0x242424)
+
+#### Key Function-Based Components
+
+**Node State Management** (`src/stores/nodeState.ts`):
+- จัดการ collapse/expand, editing, properties ของ nodes
+- รองรับ action buttons และ bounds management
+- มี compatibility wrapper เป็น `nodeStateManager`
+
+**Selection Management** (`src/stores/selectionState.ts`):
+- จัดการการเลือก elements และ visual indicators
+- รองรับ multi-selection และ enhanced nodes
+- มี compatibility wrapper เป็น `selectionManager`
+
+**Theme Management** (`src/stores/themeState.ts`):
+- จัดการ themes และ accessibility settings
+- รองรับ localStorage persistence
+- มี compatibility wrapper เป็น `themeManager`
+
+**Composable Actions** (`src/composables/`):
+- `useNodeActions`: การจัดการ node states
+- `useSelectionActions`: การจัดการ selection
+- `useThemeActions`: การจัดการ themes
+
+**Factory Functions** (`src/factories/`):
+- `createZoomManager`: Zoom management แบบ function
+- `createLayoutManager`: Layout management แบบ function
+
+### Event Handling (Updated)
+- HTML buttons trigger PixiJS component creation (เหมือนเดิม)
+- Stage-level event handling for drag operations (เหมือนเดิม)
+- **Store subscriptions สำหรับ state changes** (ใหม่)
+- **Composable actions สำหรับ user interactions** (ใหม่)
+- Components use `eventMode: 'static'` for interaction (เหมือนเดิม)
 
 ## TypeScript Configuration
 - Target: ES2022 with strict mode enabled
 - No unused locals/parameters allowed
 - Bundler module resolution with Vite
+
+## 🎯 Function-Based Architecture Benefits
+
+### Performance Benefits
+1. **Reduced Bundle Size**: Tree-shaking ทำงานได้ดีกว่าด้วย function exports
+2. **Less Memory Usage**: ไม่มี class instantiation overhead
+3. **Better HMR**: Hot Module Replacement เร็วขึ้นกับ function modules
+
+### Developer Experience Benefits
+1. **Consistent Code Style**: รูปแบบการเขียนโค้ดเดียวกันทั้งโปรเจค
+2. **Better IntelliSense**: TypeScript auto-completion ทำงานได้ดีกว่า
+3. **Easier Testing**: Pure functions ทดสอบง่ายกว่า class methods
+4. **Better Debugging**: Function call stack ชัดเจนกว่า
+
+### Maintenance Benefits
+1. **Simpler Imports**: Import เฉพาะ functions ที่ใช้
+2. **Better Composability**: ผสมผสาน functions ได้ง่าย
+3. **Clearer Dependencies**: Function dependencies ชัดเจนกว่า
+4. **Easier Refactoring**: เปลี่ยนแปลงได้ง่ายกว่า
+
+## 🔄 Migration Guide
+
+### สำหรับโค้ดใหม่
+ใช้ function-based pattern ใหม่:
+```typescript
+// ✅ แนะนำ - Function-based
+import { useNodeActions, useSelectionActions } from './composables';
+import { createZoomManager } from './factories';
+
+const nodeActions = useNodeActions(container);
+nodeActions.collapse();
+```
+
+### สำหรับโค้ดเก่า
+ยังใช้ compatibility wrappers ได้:
+```typescript
+// ✅ ยังใช้ได้ - Backward compatibility
+import { nodeStateManager, selectionManager } from './stores';
+
+nodeStateManager.setCollapsed(container, true);
+selectionManager.selectElement(element);
+```
+
+### การเปลี่ยนแปลงแบบค่อยเป็นค่อยไป
+1. **โค้ดเก่าจะทำงานได้ปกติ** ด้วย compatibility wrappers
+2. **เพิ่มฟีเจอร์ใหม่ด้วย function-based pattern**
+3. **ค่อยๆ refactor โค้ดเก่าตามความสะดวก**
+4. **ทดสอบด้วย `npm test -- functionBasedArchitecture`**
