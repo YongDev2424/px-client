@@ -63,10 +63,11 @@ class StageManager {
   private handleStagePointerMove(event: FederatedPointerEvent): void {
     // อัปเดต preview line ถ้ากำลังสร้าง edge
     if (edgeStateManager.isCreatingEdge()) {
-      const currentMousePosition = event.global.clone();
-      edgeStateManager.updatePreview(currentMousePosition);
+      // แปลงพิกัด global เป็น local coordinates ของ stage เพื่อรองรับ zoom
+      const localMousePosition = this.globalToStageLocal(event.global);
+      edgeStateManager.updatePreview(localMousePosition);
       
-      // ขยาย hit area ของ connection points ทุกตัวเมื่อกำลังสร้าง edge
+      // ขยาง hit area ของ connection points ทุกตัวเมื่อกำลังสร้าง edge
       this.updateAllConnectionPointsHitArea(true);
     } else {
       // ย่อ hit area กลับเป็นปกติเมื่อไม่ได้สร้าง edge
@@ -231,6 +232,22 @@ class StageManager {
   resetStageCursor(): void {
     this.setStageCursor('default');
   }
+
+  /**
+   * แปลงพิกัด global (หน้าจอ) เป็น local coordinates ของ stage
+   * เพื่อรองรับการ zoom และ pan ของ stage
+   * @param globalPoint - พิกัด global จาก event.global
+   * @returns พิกัด local บน stage ที่ปรับตาม zoom แล้ว
+   */
+  private globalToStageLocal(globalPoint: Point): Point {
+    if (!this.app) return globalPoint.clone();
+    
+    // ใช้ toLocal() ของ stage เพื่อแปลงพิกัด global เป็น local
+    // ฟังก์ชันนี้จะคำนวณ zoom scale และ position offset ให้อัตโนมัติ
+    return this.app.stage.toLocal(globalPoint);
+  }
+
+
 
   /**
    * อัปเดต hit area ของ connection points ทั้งหมดบน stage

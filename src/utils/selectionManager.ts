@@ -81,7 +81,7 @@ class SelectionManager {
    */
   deselectAll(): void {
     const elementsToDeselect = Array.from(this.selectedElements);
-    
+
     elementsToDeselect.forEach(element => {
       this.deselectElement(element);
     });
@@ -128,17 +128,18 @@ class SelectionManager {
     // ลบ indicator เก่าถ้ามี
     this.removeSelectionIndicator(container);
 
-    // คำนวณ bounds ของ container
-    const bounds = container.getBounds();
+    // คำนวณ bounds ของ container ใน local coordinates
+    const localBounds = container.getLocalBounds();
     const padding = 8; // ระยะห่างจากขอบ
 
     // สร้าง selection indicator (เส้นขอบสีน้ำเงิน)
+    // ใช้ local bounds แทน global bounds เพื่อให้ตรงตำแหน่งเมื่อ zoom
     const indicator = new Graphics()
       .rect(
-        bounds.x - container.x - padding,
-        bounds.y - container.y - padding,
-        bounds.width + (padding * 2),
-        bounds.height + (padding * 2)
+        localBounds.x - padding,
+        localBounds.y - padding,
+        localBounds.width + (padding * 2),
+        localBounds.height + (padding * 2)
       )
       .stroke({
         width: 3,
@@ -148,7 +149,7 @@ class SelectionManager {
 
     // เพิ่ม indicator เข้าไปใน container
     container.addChild(indicator);
-    
+
     // เก็บ reference ไว้เพื่อลบภายหลัง
     this.selectionIndicators.set(container, indicator);
   }
@@ -181,15 +182,15 @@ class SelectionManager {
   destroy(): void {
     // Deselect ทุก elements
     this.deselectAll();
-    
+
     // ลบ indicators ทั้งหมด
     this.selectionIndicators.forEach((_indicator, container) => {
       this.removeSelectionIndicator(container);
     });
-    
+
     this.selectedElements.clear();
     this.selectionIndicators.clear();
-    
+
     console.log('🗑️ Selection Manager destroyed');
   }
 }

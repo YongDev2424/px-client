@@ -31,9 +31,10 @@ function getAngleBetweenPoints(from: Point, to: Point): number {
  * คำนวณตำแหน่งของจุดเชื่อมต่อบน Node (ตำแหน่งจริงของ connection point)
  * @param node - Container ของ Node
  * @param preferredSide - ด้านที่ต้องการ (optional) หากไม่ระบุจะใช้ connection point แรกที่เจอ
+ * @param returnLocalCoordinates - คืนค่าเป็น local coordinates ของ stage หรือไม่ (default: false = global)
  * @returns ตำแหน่งจริงของ connection point บน Node
  */
-function getConnectionPointPosition(node: Container, preferredSide?: string): Point {
+function getConnectionPointPosition(node: Container, preferredSide?: string, returnLocalCoordinates: boolean = false): Point {
   // หา connection points ทั้งหมดที่อยู่ใน Node (children ที่มี cursor = 'crosshair')
   const connectionPoints = node.children.filter(child => 
     (child as any).cursor === 'crosshair'
@@ -45,7 +46,19 @@ function getConnectionPointPosition(node: Container, preferredSide?: string): Po
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
     console.warn('⚠️ ไม่พบ Connection Points ใน Node, ใช้จุดกึ่งกลาง');
-    return new Point(centerX, centerY);
+    
+    const globalCenter = new Point(centerX, centerY);
+    
+    if (returnLocalCoordinates) {
+      // หา stage และแปลงเป็น local coordinates
+      let stage = node.parent;
+      while (stage && stage.parent) {
+        stage = stage.parent as Container;
+      }
+      return stage ? stage.toLocal(globalCenter) : globalCenter;
+    }
+    
+    return globalCenter;
   }
   
   let selectedConnectionPoint = connectionPoints[0]; // default เป็นตัวแรก
@@ -74,6 +87,18 @@ function getConnectionPointPosition(node: Container, preferredSide?: string): Po
   // ใช้ตำแหน่งจริงของ connection point ที่เลือก (PixiJS v8 API)
   const globalPos = selectedConnectionPoint.getGlobalPosition();
   console.log('🔍 Connection Point global position:', globalPos, 'side:', (selectedConnectionPoint as any).side);
+  
+  if (returnLocalCoordinates) {
+    // หา stage และแปลงเป็น local coordinates
+    let stage = node.parent;
+    while (stage && stage.parent) {
+      stage = stage.parent as Container;
+    }
+    const localPos = stage ? stage.toLocal(globalPos) : globalPos;
+    console.log('📍 Connection Point local position:', localPos);
+    return localPos;
+  }
+  
   return globalPos;
 }
 
@@ -141,13 +166,13 @@ export function createEdge(
   // สร้าง Container หลักสำหรับ Edge
   const edgeContainer = new Container();
   
-  // คำนวณตำแหน่งจุดเชื่อมต่อของทั้งสอง Node
-  const startPoint = getConnectionPointPosition(sourceNode, sourceSide);
-  const endPoint = getConnectionPointPosition(targetNode, targetSide);
+  // คำนวณตำแหน่งจุดเชื่อมต่อของทั้งสอง Node (ใช้ local coordinates เพื่อรองรับ zoom)
+  const startPoint = getConnectionPointPosition(sourceNode, sourceSide, true);
+  const endPoint = getConnectionPointPosition(targetNode, targetSide, true);
   
   console.log('✅ สร้าง Edge:');
-  console.log('📍 Source:', startPoint, 'side:', sourceSide);
-  console.log('📍 Target:', endPoint, 'side:', targetSide);
+  console.log('📍 Source (local):', startPoint, 'side:', sourceSide);
+  console.log('📍 Target (local):', endPoint, 'side:', targetSide);
   
   // คำนวณจุดกึ่งกลางและช่องว่างสำหรับ label
   const midPoint = getMidPoint(startPoint, endPoint);
@@ -284,16 +309,16 @@ export function updateEdgePosition(edgeContainer: Container): void {
   
   const { sourceNode, targetNode, labelContainer } = edgeData;
   
-  // คำนวณตำแหน่งใหม่ โดยใช้ side ที่บันทึกไว้
+  // คำนวณตำแหน่งใหม่ โดยใช้ side ที่บันทึกไว้ (ใช้ local coordinates เพื่อรองรับ zoom)
   const sourceSide = (edgeContainer as any).edgeData?.sourceSide;
   const targetSide = (edgeContainer as any).edgeData?.targetSide;
   
-  const newStartPoint = getConnectionPointPosition(sourceNode, sourceSide);
-  const newEndPoint = getConnectionPointPosition(targetNode, targetSide);
+  const newStartPoint = getConnectionPointPosition(sourceNode, sourceSide, true);
+  const newEndPoint = getConnectionPointPosition(targetNode, targetSide, true);
   
   console.log('🔄 อัปเดต Edge position:');
-  console.log('📍 Source Side:', sourceSide, '→', newStartPoint);
-  console.log('📍 Target Side:', targetSide, '→', newEndPoint);
+  console.log('📍 Source Side:', sourceSide, '→ (local)', newStartPoint);
+  console.log('📍 Target Side:', targetSide, '→ (local)', newEndPoint);
   
   // ล้างและวาดใหม่
   edgeContainer.removeChildren();

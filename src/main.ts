@@ -54,6 +54,57 @@ canvasContainer.appendChild(app.canvas);
 // --- Initialize Layout System ---
 initializeLayout();
 
+// --- Initialize Canvas Container (Optional Enhancement) ---
+let canvasContainerEnhancement: any = null;
+
+async function initializeCanvasEnhancement() {
+  try {
+    if (!canvasContainer) {
+      console.error('❌ Canvas container not found for enhancement');
+      return;
+    }
+    
+    const { CanvasContainer } = await import('./components/CanvasContainer');
+    canvasContainerEnhancement = new CanvasContainer(app, canvasContainer);
+    
+    // Optional: Enable grid and snap features (disabled by default to preserve existing behavior)
+    // canvasContainerEnhancement.enableGrid(true);
+    // canvasContainerEnhancement.enableSnapToGrid(true);
+    
+    console.log('✅ CanvasContainer enhancement initialized (features disabled by default)');
+  } catch (error) {
+    console.error('❌ Failed to initialize CanvasContainer enhancement:', error);
+  }
+}
+
+// Initialize Canvas Enhancement after app is ready
+initializeCanvasEnhancement();
+
+// --- Initialize Zoom Controls (Optional Enhancement) ---
+let zoomControls: any = null;
+
+async function initializeZoomControls() {
+  try {
+    const { ZoomControls } = await import('./components/ZoomControls');
+    zoomControls = new ZoomControls(app, {
+      position: 'bottom-right',
+      enableMouseWheel: true,
+      showTooltips: true,
+      smoothTransitions: true,
+      minZoom: 0.25,
+      maxZoom: 4.0,
+      zoomStep: 0.25
+    });
+    
+    console.log('✅ ZoomControls enhancement initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize ZoomControls enhancement:', error);
+  }
+}
+
+// Initialize Zoom Controls after app is ready
+initializeZoomControls();
+
 // --- Initialize Left Panel with ComponentTree ---
 async function initializeLeftPanel() {
   try {
@@ -97,29 +148,107 @@ function createAndAddC4Box(name: string, color: number, type: string): void {
   console.log(`เพิ่ม ${name} Node ใหม่และเพิ่มเข้า ComponentTree`);
 }
 
-// Add Person Button
+// Enhanced helper function using C4BoxFactory
+async function createAndAddEnhancedC4Box(name: string, type: 'person' | 'system' | 'container' | 'component'): Promise<void> {
+  try {
+    const { C4BoxFactory } = await import('./utils/C4BoxFactory');
+    
+    // สร้าง enhanced C4Box
+    const newBox = C4BoxFactory.createEnhancedC4Box(app, name, type, true);
+    
+    app.stage.addChild(newBox);
+    
+    // Add to ComponentTree if available
+    if (leftPanel && leftPanel.getComponentTree) {
+      const componentTree = leftPanel.getComponentTree();
+      if (componentTree) {
+        componentTree.addComponentFromPixiNode(newBox);
+      }
+    }
+    
+    console.log(`✨ เพิ่ม Enhanced ${name} Node ใหม่และเพิ่มเข้า ComponentTree`);
+  } catch (error) {
+    console.error('❌ Failed to create enhanced C4Box:', error);
+    // Fallback to standard creation
+    createAndAddC4Box(name, 0x4A90E2, type);
+  }
+}
+
+// Demo function to test enhancement system
+async function createEnhancementDemo(): Promise<void> {
+  try {
+    const { C4BoxFactory } = await import('./utils/C4BoxFactory');
+    
+    console.log('🎨 Creating C4 Enhancement Demo...');
+    
+    // Validate themes first
+    C4BoxFactory.validateThemeCompliance();
+    
+    // Create demo boxes with enhanced styling
+    const demoBoxes = C4BoxFactory.createDemoBoxes(app, true);
+    
+    // Position them in a grid
+    demoBoxes.forEach((box, index) => {
+      box.x = 100 + (index % 2) * 300;
+      box.y = 100 + Math.floor(index / 2) * 150;
+      app.stage.addChild(box);
+      
+      // Add to ComponentTree if available
+      if (leftPanel && leftPanel.getComponentTree) {
+        const componentTree = leftPanel.getComponentTree();
+        if (componentTree) {
+          componentTree.addComponentFromPixiNode(box);
+        }
+      }
+    });
+    
+    console.log('✅ Enhancement demo created successfully');
+  } catch (error) {
+    console.error('❌ Failed to create enhancement demo:', error);
+  }
+}
+
+// Add Person Button - Enhanced Version
 const addPersonButton = document.getElementById('add-person-btn');
 addPersonButton?.addEventListener('click', () => {
-  createAndAddC4Box('Person', 0x0B61A4, 'person');
+  createAndAddEnhancedC4Box('Person', 'person');
 });
 
-// Add System Button
+// Add System Button - Enhanced Version
 const addSystemButton = document.getElementById('add-system-btn');
 addSystemButton?.addEventListener('click', () => {
-  createAndAddC4Box('Software System', 0x2E7D32, 'system');
+  createAndAddEnhancedC4Box('Software System', 'system');
 });
 
-// Add Container Button
+// Add Container Button - Enhanced Version
 const addContainerButton = document.getElementById('add-container-btn');
 addContainerButton?.addEventListener('click', () => {
-  createAndAddC4Box('Container', 0xF57C00, 'container');
+  createAndAddEnhancedC4Box('Container', 'container');
 });
 
-// Add Component Button
+// Add Component Button - Enhanced Version
 const addComponentButton = document.getElementById('add-component-btn');
 addComponentButton?.addEventListener('click', () => {
-  createAndAddC4Box('Component', 0x616161, 'component');
+  createAndAddEnhancedC4Box('Component', 'component');
 });
+
+// Add Demo Button for testing enhancements
+const demoButton = document.getElementById('demo-btn');
+if (!demoButton) {
+  // Create demo button if it doesn't exist
+  const toolbar = document.querySelector('.toolbar');
+  if (toolbar) {
+    const newDemoButton = document.createElement('button');
+    newDemoButton.id = 'demo-btn';
+    newDemoButton.textContent = '🎨 Demo Enhanced';
+    newDemoButton.className = 'toolbar-button';
+    newDemoButton.addEventListener('click', createEnhancementDemo);
+    toolbar.appendChild(newDemoButton);
+    console.log('✅ Added demo button to toolbar');
+  }
+} else {
+  demoButton.addEventListener('click', createEnhancementDemo);
+}
 
 // --- Handle Layout Canvas Resize Events ---
 window.addEventListener('layout-canvas-resize', () => {
@@ -134,5 +263,11 @@ window.addEventListener('beforeunload', () => {
   }
   if (leftPanel && leftPanel.destroy) {
     leftPanel.destroy();
+  }
+  if (canvasContainerEnhancement && canvasContainerEnhancement.destroy) {
+    canvasContainerEnhancement.destroy();
+  }
+  if (zoomControls && zoomControls.destroy) {
+    zoomControls.destroy();
   }
 });

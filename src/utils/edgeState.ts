@@ -53,7 +53,7 @@ class EdgeStateManager {
   /**
    * เริ่มต้นกระบวนการสร้าง Edge
    * @param sourceNode - Node ที่เป็นจุดเริ่มต้นของ edge
-   * @param startPoint - จุดเริ่มต้นบน stage (พิกัด global)
+   * @param startPoint - จุดเริ่มต้นบน stage (พิกัด local ของ stage)
    * @param previewGraphics - Graphics object สำหรับวาดเส้น preview
    * @param sourceConnectionPoint - Connection Point ที่เป็นจุดเริ่มต้น (optional)
    */
@@ -76,7 +76,7 @@ class EdgeStateManager {
 
   /**
    * อัปเดตตำแหน่งปลายของเส้น preview ตามตำแหน่งเมาส์
-   * @param endPoint - ตำแหน่งปลายทางปัจจุบัน (พิกัด global)
+   * @param endPoint - ตำแหน่งปลายทางปัจจุบัน (พิกัด local บน stage หลังจากแปลงจาก global แล้ว)
    */
   updatePreview(endPoint: Point): void {
     if (this.currentMode !== EdgeCreationMode.CREATING || !this.previewLine) {
@@ -85,10 +85,12 @@ class EdgeStateManager {
 
     // ล้างเส้นเก่าและวาดเส้นใหม่
     this.previewLine.clear();
-    this.previewLine.stroke({ width: 2, color: 0x666666, alpha: 0.7 });
-    this.previewLine.moveTo(this.previewStartPoint.x, this.previewStartPoint.y);
-    this.previewLine.lineTo(endPoint.x, endPoint.y);
-    this.previewLine.stroke();
+    
+    // วาดเส้นจาก startPoint ไป endPoint (ทั้งคู่เป็น local coordinates แล้ว)
+    this.previewLine
+      .moveTo(this.previewStartPoint.x, this.previewStartPoint.y)
+      .lineTo(endPoint.x, endPoint.y)
+      .stroke({ width: 2, color: 0x666666, alpha: 0.7 });
   }
 
   /**

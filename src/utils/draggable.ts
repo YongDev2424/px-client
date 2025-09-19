@@ -24,9 +24,15 @@ export function makeDraggable(target: Container, app: Application): void {
     // เมื่อ "กด" เมาส์ลงบนวัตถุเป้าหมาย
     target.on('pointerdown', (event: FederatedPointerEvent) => {
         isDragging = true;
-        // คำนวณและจำระยะห่างระหว่างจุดที่คลิกกับมุมของวัตถุ
-        dragOffset.x = target.x - event.global.x;
-        dragOffset.y = target.y - event.global.y;
+        
+        // แปลงพิกัด global เป็น local coordinates ของ stage เพื่อรองรับ zoom
+        const localMousePos = app.stage.toLocal(event.global);
+        
+        // คำนวณและจำระยะห่างระหว่างจุดที่คลิกกับมุมของวัตถุ (ใช้ local coordinates)
+        dragOffset.x = target.x - localMousePos.x;
+        dragOffset.y = target.y - localMousePos.y;
+        
+        console.log('🎯 Drag start - Global:', event.global, 'Local:', localMousePos, 'Target:', { x: target.x, y: target.y });
     });
 
     app.stage.eventMode = 'static';
@@ -40,9 +46,12 @@ export function makeDraggable(target: Container, app: Application): void {
     // เมื่อ "ขยับ" เมาส์ (เราดักฟังที่ stage ทั้งหมด)
     app.stage.on('globalpointermove', (event: FederatedPointerEvent) => {
         if (isDragging) {
-            // อัปเดตตำแหน่งของวัตถุโดยใช้ระยะห่างที่จำไว้
-            target.x = event.global.x + dragOffset.x;
-            target.y = event.global.y + dragOffset.y;
+            // แปลงพิกัด global เป็น local coordinates ของ stage เพื่อรองรับ zoom
+            const localMousePos = app.stage.toLocal(event.global);
+            
+            // อัปเดตตำแหน่งของวัตถุโดยใช้ระยะห่างที่จำไว้ (ใช้ local coordinates)
+            target.x = localMousePos.x + dragOffset.x;
+            target.y = localMousePos.y + dragOffset.y;
             
             // อัปเดตตำแหน่งของ edges ที่เชื่อมต่อกับ node นี้
             const allEdges = edgeStateManager.getAllEdges();

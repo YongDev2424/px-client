@@ -8,6 +8,8 @@ import { connectionStateManager } from '../utils/connectionState';
 import { edgeStateManager } from '../utils/edgeState';
 import { createPreviewEdge, createEdge } from './Edge';
 import { makeSelectable, selectionManager } from '../utils/selectionManager';
+import { C4BoxEnhancer } from './C4BoxEnhancer';
+import type { C4StyleOptions } from '../utils/C4Themes';
 
 /**
  * Type สำหรับระบุตำแหน่งของ Connection Point บน C4Box
@@ -128,9 +130,17 @@ function setupConnectionPointEvents(connectionPoint: Graphics, boxContainer: Con
  * @param app - ตัวแอปพลิเคชัน Pixi หลัก
  * @param labelText - ข้อความที่จะแสดงในกล่อง
  * @param boxColor - สีพื้นหลังของกล่อง
+ * @param enhanced - เปิดใช้งาน enhanced styling หรือไม่ (optional)
+ * @param enhancementOptions - ตัวเลือกการปรับปรุงสไตล์ (optional)
  * @returns - วัตถุ Container ของกล่องที่สร้างเสร็จแล้ว
  */
-export function createC4Box(app: Application, labelText: string, boxColor: number): Container {
+export function createC4Box(
+  app: Application, 
+  labelText: string, 
+  boxColor: number, 
+  enhanced?: boolean,
+  enhancementOptions?: C4StyleOptions
+): Container {
   // 1. สร้าง Container และส่วนประกอบภาพทั้งหมด
   const boxContainer = new Container();
   const boxGraphics = new Graphics()
@@ -290,7 +300,13 @@ export function createC4Box(app: Application, labelText: string, boxColor: numbe
     selectOnClick: false // ปิดการ auto-select เมื่อคลิก เพราะมี logic ซับซ้อนอยู่แล้ว
   });
 
-  // 9. คืนค่า Container ที่สมบูรณ์แล้วออกไป
+  // 9. เพิ่ม Enhanced Styling ถ้าต้องการ (Additive Approach)
+  if (enhanced) {
+    console.log('🎨 Applying enhanced styling to C4Box');
+    return C4BoxEnhancer.enhanceExistingBox(boxContainer, enhancementOptions);
+  }
+
+  // 10. คืนค่า Container ที่สมบูรณ์แล้วออกไป (Original หรือ Enhanced)
   return boxContainer;
 }
 
@@ -304,24 +320,30 @@ function startEdgeCreation(sourceNode: Container, sourceConnectionPoint: Graphic
   console.log('เริ่มสร้าง Edge จาก Node:', sourceNode, 'ด้าน:', (sourceConnectionPoint as any).side);
   
   // คำนวณจุดเริ่มต้น (พิกัด global ของ connection point จริง)
-  const startPoint = sourceConnectionPoint.getGlobalPosition();
-  console.log('🎯 ตำแหน่งจริงของ Connection Point:', startPoint);
-  console.log('🖱️ ตำแหน่งเมาส์:', event.global);
+  const globalStartPoint = sourceConnectionPoint.getGlobalPosition();
+  console.log('🎯 ตำแหน่งจริงของ Connection Point (global):', globalStartPoint);
+  console.log('🖱️ ตำแหน่งเมาส์ (global):', event.global);
   
-  // สร้าง preview line
-  const previewLine = createPreviewEdge(startPoint, startPoint);
+  // หา stage เพื่อแปลงพิกัด global เป็น local
+  let stage = sourceNode.parent;
+  while (stage && stage.parent) {
+    stage = stage.parent as Container;
+  }
+  
+  // แปลงพิกัด global เป็น local coordinates ของ stage
+  const localStartPoint = stage ? stage.toLocal(globalStartPoint) : globalStartPoint;
+  console.log('📍 ตำแหน่ง Connection Point (local บน stage):', localStartPoint);
+  
+  // สร้าง preview line ด้วยพิกัด local
+  const previewLine = createPreviewEdge(localStartPoint, localStartPoint);
   
   // เพิ่ม preview line เข้าใน stage
-  let currentParent = sourceNode.parent;
-  while (currentParent && currentParent.parent) {
-    currentParent = currentParent.parent as Container;
-  }
-  if (currentParent) {
-    currentParent.addChild(previewLine);
+  if (stage) {
+    stage.addChild(previewLine);
   }
   
-  // เริ่มต้นการสร้าง edge พร้อมส่ง source connection point
-  edgeStateManager.startEdgeCreation(sourceNode, startPoint, previewLine, sourceConnectionPoint);
+  // เริ่มต้นการสร้าง edge พร้อมส่ง local coordinates
+  edgeStateManager.startEdgeCreation(sourceNode, localStartPoint, previewLine, sourceConnectionPoint);
 }
 
 /**

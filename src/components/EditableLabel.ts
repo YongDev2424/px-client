@@ -133,6 +133,33 @@ export function createEditableLabel(options: EditableLabelOptions): Container {
 
   (labelContainer as any).editableLabelData = labelData;
 
+  // เพิ่มฟังก์ชันสำหรับอัปเดต text resolution เมื่อ zoom
+  (labelContainer as any).updateTextResolution = function(resolution: number) {
+    const data = (this as any).editableLabelData as EditableLabelData;
+    if (data && data.textObject) {
+      // อัปเดต resolution ของ Text object
+      if ((data.textObject as any).resolution !== resolution) {
+        (data.textObject as any).resolution = resolution;
+        
+        // บังคับให้ re-render text ด้วย resolution ใหม่
+        // ใน PixiJS v8 ใช้ dirty flag เพื่อบังคับ re-render
+        (data.textObject as any)._didTextUpdate = true;
+        
+        // หรือสร้าง TextStyle ใหม่เพื่อบังคับ update
+        const currentStyle = data.textObject.style;
+        data.textObject.style = new TextStyle({
+          fontFamily: currentStyle.fontFamily,
+          fontSize: currentStyle.fontSize,
+          fill: currentStyle.fill,
+          align: currentStyle.align,
+          fontWeight: currentStyle.fontWeight,
+          wordWrap: currentStyle.wordWrap,
+          wordWrapWidth: currentStyle.wordWrapWidth
+        });
+      }
+    }
+  };
+
   return labelContainer;
 }
 
