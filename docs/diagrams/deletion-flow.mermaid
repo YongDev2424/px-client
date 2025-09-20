@@ -1,0 +1,64 @@
+```mermaid
+graph TD
+    A[🗑️ User Clicks Delete] --> B[Toolbar State]
+    B --> C[Show Confirmation Modal]
+    C --> D{User Confirms?}
+    
+    D -->|No| E[Cancel - No Action]
+    D -->|Yes| F[Start Deletion Process]
+    
+    F --> G[useDeletionState.deleteElement]
+    G --> H[Mark as Deleting]
+    H --> I{Element Type?}
+    
+    I -->|Node| J[Delete Node Flow]
+    I -->|Edge| K[Delete Edge Flow]
+    
+    %% Node Deletion Flow
+    J --> J1[Find Connected Edges]
+    J1 --> J2[Delete Connected Edges First]
+    J2 --> J3[Remove from Selection State]
+    J3 --> J4[Remove from Node State]
+    J4 --> J5[Remove from ComponentTree]
+    J5 --> J6[Remove from PixiJS Stage]
+    J6 --> J7[Cleanup References]
+    
+    %% Edge Deletion Flow  
+    K --> K1[Remove Edge Connections]
+    K1 --> K2[Remove from Selection State]
+    K2 --> K3[Remove from ComponentTree]
+    K3 --> K4[Remove from PixiJS Stage]
+    K4 --> K5[Cleanup References]
+    
+    %% Completion
+    J7 --> L[Unmark as Deleting]
+    K5 --> L
+    L --> M[Add to Deletion History]
+    M --> N[Dispatch Success Event]
+    N --> O[Update UI Components]
+    O --> P[✅ Deletion Complete]
+    
+    %% Error Handling
+    G --> G1{Error Occurs?}
+    G1 -->|Yes| G2[Dispatch Error Event]
+    G2 --> G3[Add Error to History]
+    G3 --> G4[Unmark as Deleting]
+    G4 --> G5[❌ Show Error Message]
+    
+    %% Event Flow
+    H --> E1[dispatch: deletion-started]
+    N --> E2[dispatch: deletion-completed]
+    G2 --> E3[dispatch: deletion-failed]
+    
+    E1 --> UI1[Loading States]
+    E2 --> UI2[Success Feedback]
+    E3 --> UI3[Error Messages]
+    
+    style A fill:#ffebee
+    style P fill:#e8f5e8
+    style G5 fill:#ffcdd2
+    style G fill:#fff3e0
+    style H fill:#fff3e0
+    style L fill:#fff3e0
+    style M fill:#fff3e0
+```

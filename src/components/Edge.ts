@@ -252,6 +252,9 @@ export function createEdge(
     .moveTo(startPoint.x, startPoint.y)
     .lineTo(endPoint.x, endPoint.y)
     .stroke({ width: lineWidth, color: lineColor });
+  
+  // เพิ่ม label สำหรับ hit area detection
+  lineGraphics.label = 'edge-line';
 
   // เพิ่ม hover effects สำหรับ edge
   lineGraphics.eventMode = 'static';
@@ -316,6 +319,30 @@ export function createEdge(
     targetSide: targetSide     // เก็บ side ของ target
   };
   
+  // 🔗 เพิ่ม selectable capability ให้กับ Edge
+  const edgeData = {
+    labelText,
+    relationshipType: 'default',
+    sourceId: (sourceNode as any).nodeData?.id || 'unknown-source',
+    targetId: (targetNode as any).nodeData?.id || 'unknown-target',
+    sourceSide,
+    targetSide
+  };
+
+  // เพิ่ม selectable capability ใช้ dynamic import เพื่อหลีกเลี่ยง circular dependency)
+  import('../utils/selectableEdge').then(({ makeSelectableEdge }) => {
+    makeSelectableEdge(edgeContainer, {
+      data: edgeData,
+      hitAreaPadding: 15, // เพิ่ม hit area สำหรับ edge selection ที่ง่ายขึ้น
+      onSelect: () => {
+        console.log('🔗 Edge selected for toolbar actions:', labelText);
+      },
+      onDeselect: () => {
+        console.log('⭕ Edge deselected from toolbar:', labelText);
+      }
+    });
+  });
+
   // 🎨 ADDITIVE ENHANCEMENT: เพิ่มการปรับปรุงรูปแบบแบบ optional
   if (enhanced) {
     // Import EdgeStyler แบบ dynamic เพื่อไม่ให้กระทบกับ existing code
@@ -545,6 +572,65 @@ export function createEnhancedEdge(
     console.warn('⚠️ ไม่สามารถโหลด EdgeStyler ได้:', error);
   });
   
+  return edge;
+}
+
+/**
+ * 🎯 SELECTABLE EDGE CREATION - สร้าง Edge ที่สามารถเลือกได้
+ * สร้าง Edge พร้อมความสามารถในการ select สำหรับ toolbar actions
+ * @param sourceNode - Node ต้นทาง
+ * @param targetNode - Node ปลายทาง
+ * @param labelText - ข้อความ Label
+ * @param relationshipType - ประเภทความสัมพันธ์
+ * @param sourceSide - ด้านของ source node
+ * @param targetSide - ด้านของ target node
+ * @returns Container ของ Edge ที่สามารถ select ได้
+ */
+export function createSelectableEdge(
+  sourceNode: Container,
+  targetNode: Container,
+  labelText: string = 'relationship',
+  relationshipType: string = 'default',
+  sourceSide?: string,
+  targetSide?: string
+): Container {
+  // สร้าง enhanced edge
+  const edge = createEnhancedEdge(
+    sourceNode,
+    targetNode,
+    labelText,
+    relationshipType,
+    sourceSide,
+    targetSide
+  );
+  
+  const edgeData = {
+    labelText,
+    relationshipType,
+    sourceNode,
+    targetNode,
+    sourceSide,
+    targetSide
+  };
+  
+  // เพิ่ม selectable capability (ใช้ dynamic import เพื่อหลีกเลี่ยง circular dependency)
+  import('../utils/selectableEdge').then(({ makeSelectableEdge }) => {
+    makeSelectableEdge(edge, {
+      data: edgeData,
+      hitAreaPadding: 15, // เพิ่ม hit area สำหรับ edge selection ที่ง่ายขึ้น
+      onSelect: () => {
+        console.log('🔗 Edge selected for toolbar actions:', labelText);
+      },
+      onDeselect: () => {
+        console.log('⭕ Edge deselected from toolbar:', labelText);
+      }
+    });
+  });
+  
+  // เก็บ edge data สำหรับการใช้งานภายหลัง
+  (edge as any).edgeData = edgeData;
+  
+  console.log(`🎯 สร้าง Selectable Edge สำเร็จ: ${labelText}`);
   return edge;
 }
 

@@ -1,0 +1,82 @@
+```mermaid
+graph TB
+    subgraph "🏪 Core Stores"
+        NS[useNodeState<br/>📦 Node Properties]
+        SS[useSelectionState<br/>🎯 Element Selection]
+        TS[useThemeState<br/>🎨 UI Themes]
+        DS[useDeletionState<br/>🗑️ Deletion Tracking]
+        TBS[useToolbarState<br/>🔧 Toolbar Controls]
+    end
+    
+    subgraph "🎣 Composables Layer"
+        NA[useNodeActions<br/>Node Manipulation]
+        SA[useSelectionActions<br/>Selection Management]
+        TA[useThemeActions<br/>Theme Operations]
+        DA[useDeletionActions<br/>Deletion Operations]
+    end
+    
+    subgraph "🖼️ PixiJS Components"
+        C4B[C4Box Components]
+        CB[CollapseButton]
+        AB[ActionButtons]
+        PE[PropertyEditor]
+        CT[ComponentTree]
+    end
+    
+    subgraph "🔗 Integration Layer"
+        EM[Event Manager<br/>CustomEvents]
+        BCW[Backward Compatibility<br/>Wrappers]
+    end
+    
+    %% Store Dependencies
+    DS -.->|watches| SS
+    DS -.->|cleanup| NS
+    TBS -.->|observes| SS
+    
+    %% Composable to Store connections
+    NA --> NS
+    SA --> SS
+    TA --> TS
+    DA --> DS
+    
+    %% Components to Composables
+    C4B --> NA
+    C4B --> SA
+    CB --> NA
+    AB --> NA
+    PE --> NA
+    CT --> SA
+    
+    %% Event flow
+    NS --> EM
+    SS --> EM
+    TS --> EM
+    DS --> EM
+    TBS --> EM
+    
+    EM --> C4B
+    EM --> CB
+    EM --> AB
+    EM --> PE
+    EM --> CT
+    
+    %% Backward compatibility
+    BCW --> NS
+    BCW --> SS
+    BCW --> TS
+    
+    %% Styling
+    style NS fill:#ffecb3
+    style SS fill:#e1f5fe
+    style TS fill:#f3e5f5
+    style DS fill:#ffebee
+    style TBS fill:#e8f5e8
+    
+    style NA fill:#fff8e1
+    style SA fill:#e0f2f1
+    style TA fill:#fce4ec
+    style DA fill:#f1f8e9
+    
+    style EM fill:#e3f2fd
+    style BCW fill:#f5f5f5
+```

@@ -35,6 +35,14 @@ export {
   type AccessibilitySettings
 } from './themeState';
 
+// Deletion State Store
+export {
+  useDeletionState,
+  deletionManager,
+  type DeletionRecord,
+  type DeletionStateStore
+} from './deletionState';
+
 /**
  * Initialize all stores
  */
@@ -54,6 +62,9 @@ export function destroyStores(): void {
   
   // Clear selection state
   useSelectionState.getState().destroy();
+  
+  // Clear deletion state
+  useDeletionState.getState().destroy();
   
   // Destroy theme
   destroyTheme();

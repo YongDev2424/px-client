@@ -7,7 +7,7 @@ import { fadeIn, fadeOut } from '../utils/animations';
 import { connectionStateManager } from '../utils/connectionState';
 import { edgeStateManager } from '../utils/edgeState';
 import { createPreviewEdge, createEdge } from './Edge';
-import { makeSelectable, selectionManager } from '../utils/selectionManager';
+import { makeSelectable, selectionManager } from '../stores/selectionState';
 import { C4BoxEnhancer } from './C4BoxEnhancer';
 import type { C4StyleOptions } from '../utils/C4Themes';
 
@@ -246,7 +246,7 @@ export function createC4Box(
   boxContainer.on('pointerdown', (event: FederatedPointerEvent) => {
     event.stopPropagation();
 
-    // 1. Toggle Selection ของ Node
+    // 1. Toggle Selection ของ Node ด้วยระบบใหม่
     selectionManager.toggleSelection(selectableElement);
 
     // 2. ปกติ: คลิกบน Node area = pin/unpin connection points
@@ -275,8 +275,14 @@ export function createC4Box(
   // 7. ทำให้ Container ทั้งหมดสามารถลากได้ (เฉพาะเมื่อคลิกที่ Node area)
   makeDraggable(boxContainer, app);
 
-  // 8. เพิ่ม Selection Capability ให้กับ Node
+  // 8. เพิ่ม Selection Capability ให้กับ Node ด้วยระบบใหม่
   const selectableElement = makeSelectable(boxContainer, {
+    type: 'node', // ระบุว่าเป็น node สำหรับ toolbar system
+    data: { 
+      nodeType: 'c4box', 
+      title: labelText,
+      color: boxColor 
+    },
     onSelect: () => {
       console.log('🎯 Selected C4Box:', labelText);
       // เพิ่ม visual feedback เมื่อถูก select (ถ้าต้องการ)

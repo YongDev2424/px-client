@@ -70,6 +70,51 @@ VALIDATE: ทดสอบกับหลักการที่เลือก�
 - [ ] Test Performance (< 400ms response time)
 - [ ] ตรวจสอบ Touch Target Size สำหรับ Mobile
 
+## 🏪 State Management Protocol
+
+### Level 1: State Logic Development Constraint
+⚠️ **MANDATORY**: ก่อนแก้ไขหรือเพิ่ม state logic ให้อ่านเอกสาร state management เสมอ
+
+**Protocol สำหรับ State Management:**
+1. **อ่าน `docs/state-management.md` เสมอก่อนแก้ไข state logic**
+2. ตรวจสอบ store dependencies และ side effects
+3. ใช้ existing patterns และ composables
+4. ทดสอบ state flow ด้วย browser dev tools
+
+### Level 2: State Development Protocol
+```
+READ: docs/state-management.md
+↓
+IDENTIFY: store และ composable ที่เกี่ยวข้อง
+↓
+VERIFY: state flow และ dependencies
+↓
+IMPLEMENT: ตาม established patterns
+↓
+TEST: state changes และ event flows
+```
+
+### Level 3: State Working Memory
+- **Current Architecture**: Function-based with Zustand stores
+- **Active Stores**: nodeState, selectionState, themeState, deletionState, toolbarState
+- **Event System**: CustomEvents for component communication
+- **Composables**: useNodeActions, useSelectionActions, useThemeActions, useDeletionActions
+
+### Level 4: State Quality Assurance
+- ใช้ composables แทนการเข้าถึง store โดยตรง
+- ทุก state change ต้องมี corresponding event
+- Clean up event listeners เมื่อ component ถูก destroy
+- Test state synchronization ระหว่าง components
+
+### State Management Checklist
+- [ ] อ่าน `docs/state-management.md` แล้ว
+- [ ] ระบุ stores ที่เกี่ยวข้อง
+- [ ] ตรวจสอบ event dependencies
+- [ ] ใช้ composables แทนการเข้าถึง store โดยตรง
+- [ ] ทดสอบ state synchronization
+- [ ] Clean up event listeners
+- [ ] ตรวจสอบ memory leaks
+- [ ] Validate state flow ด้วย browser dev tools
 
 ## Development Commands
 

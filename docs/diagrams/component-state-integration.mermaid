@@ -1,0 +1,51 @@
+```mermaid
+sequenceDiagram
+    participant User
+    participant Component as PixiJS Component
+    participant Composable as Composable Hook
+    participant Store as Zustand Store
+    participant Event as Event System
+    participant UI as Visual Update
+    
+    Note over User,UI: User Interaction Flow
+    
+    User->>Component: Click/Interact
+    Component->>Composable: call action()
+    
+    Note over Composable: Validate & Process
+    Composable->>Store: dispatch action
+    
+    Store->>Store: update state
+    Store->>Event: emit CustomEvent
+    
+    par Immediate Updates
+        Event->>Component: receive event
+        Component->>UI: update visual
+    and Other Components
+        Event->>Component: other components listen
+        Component->>UI: sync updates
+    end
+    
+    UI->>User: show changes
+    
+    Note over User,UI: Example: Node Collapse Flow
+    
+    User->>Component: Click collapse button
+    Component->>Composable: nodeActions.collapse()
+    Composable->>Store: setCollapsed(nodeId, true)
+    Store->>Store: update nodeStates Map
+    Store->>Event: dispatch 'node-state-changed'
+    
+    par Visual Updates
+        Event->>Component: C4Box receives event
+        Component->>UI: animate collapse
+    and Tree Sync
+        Event->>Component: ComponentTree receives event  
+        Component->>UI: update tree item
+    and Toolbar Update
+        Event->>Component: Toolbar receives event
+        Component->>UI: update button states
+    end
+    
+    UI->>User: show collapsed node
+```

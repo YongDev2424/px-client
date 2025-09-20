@@ -9,6 +9,8 @@ import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 export interface SelectableElement {
   container: Container;
   nodeId: string; // เพิ่ม nodeId สำหรับ tracking
+  type: 'node' | 'edge'; // เพิ่ม type เพื่อแยกประเภท
+  data?: any; // เพิ่ม data สำหรับเก็บข้อมูลเพิ่มเติม
   onSelect?: () => void;
   onDeselect?: () => void;
   isSelected: boolean;
@@ -32,6 +34,17 @@ interface SelectionStateStore {
   isSelected: (element: SelectableElement) => boolean;
   getSelectedElements: () => SelectableElement[];
   getSelectedCount: () => number;
+  getSelectedTypes: () => Set<'node' | 'edge'>;
+  getSelectionType: () => 'single' | 'multiple' | 'mixed' | 'none';
+  canShowEditActions: () => boolean;
+  
+  // Actions - Mixed Type Support
+  getSelectedNodes: () => SelectableElement[];
+  getSelectedEdges: () => SelectableElement[];
+  hasSelectedNodes: () => boolean;
+  hasSelectedEdges: () => boolean;
+  isMixedSelection: () => boolean;
+  getSelectionSummary: () => { nodes: number; edges: number; total: number };
   
   // Actions - Visual Indicators
   createSelectionIndicator: (element: SelectableElement) => void;
@@ -175,6 +188,71 @@ export const useSelectionState = createStore<SelectionStateStore>((set, get) => 
   getSelectedCount: () => {
     const { selectedElements } = get();
     return selectedElements.size;
+  },
+
+  getSelectedTypes: () => {
+    const { selectedElements } = get();
+    const types = new Set<'node' | 'edge'>();
+    
+    selectedElements.forEach(element => {
+      types.add(element.type);
+    });
+    
+    return types;
+  },
+
+  getSelectionType: () => {
+    const { getSelectedCount, getSelectedTypes } = get();
+    const count = getSelectedCount();
+    const types = getSelectedTypes();
+    
+    if (count === 0) return 'none';
+    if (count === 1) return 'single';
+    if (types.size > 1) return 'mixed';
+    return 'multiple';
+  },
+
+  canShowEditActions: () => {
+    const { getSelectionType } = get();
+    const selectionType = getSelectionType();
+    
+    // ตาม Requirements: แสดง edit actions เฉพาะเมื่อเลือก element เดียว
+    return selectionType === 'single';
+  },
+
+  // === Mixed Type Support ===
+  getSelectedNodes: () => {
+    const { selectedElements } = get();
+    return Array.from(selectedElements.values()).filter(element => element.type === 'node');
+  },
+
+  getSelectedEdges: () => {
+    const { selectedElements } = get();
+    return Array.from(selectedElements.values()).filter(element => element.type === 'edge');
+  },
+
+  hasSelectedNodes: () => {
+    const { getSelectedNodes } = get();
+    return getSelectedNodes().length > 0;
+  },
+
+  hasSelectedEdges: () => {
+    const { getSelectedEdges } = get();
+    return getSelectedEdges().length > 0;
+  },
+
+  isMixedSelection: () => {
+    const { hasSelectedNodes, hasSelectedEdges } = get();
+    return hasSelectedNodes() && hasSelectedEdges();
+  },
+
+  getSelectionSummary: () => {
+    const { getSelectedNodes, getSelectedEdges, getSelectedCount } = get();
+    const nodes = getSelectedNodes().length;
+    const edges = getSelectedEdges().length;
+    const total = getSelectedCount();
+    
+    return { nodes, edges, total };
   },
 
   // === Visual Indicators ===
@@ -337,6 +415,8 @@ let elementIdCounter = 0;
 export function makeSelectable(
   container: Container,
   options: {
+    type?: 'node' | 'edge';
+    data?: any;
     onSelect?: () => void;
     onDeselect?: () => void;
     selectOnClick?: boolean;
@@ -407,6 +487,8 @@ export function makeSelectable(
   const element: SelectableElement = {
     container,
     nodeId,
+    type: options.type || 'node', // default เป็น node
+    data: options.data,
     onSelect: enhancedOnSelect,
     onDeselect: enhancedOnDeselect,
     isSelected: false
@@ -477,6 +559,43 @@ export const selectionManager = {
 
   getSelectedCount: () => {
     return useSelectionState.getState().getSelectedCount();
+  },
+
+  // Mixed Type Support Methods
+  getSelectedTypes: () => {
+    return useSelectionState.getState().getSelectedTypes();
+  },
+
+  getSelectionType: () => {
+    return useSelectionState.getState().getSelectionType();
+  },
+
+  getSelectedNodes: () => {
+    return useSelectionState.getState().getSelectedNodes();
+  },
+
+  getSelectedEdges: () => {
+    return useSelectionState.getState().getSelectedEdges();
+  },
+
+  hasSelectedNodes: () => {
+    return useSelectionState.getState().hasSelectedNodes();
+  },
+
+  hasSelectedEdges: () => {
+    return useSelectionState.getState().hasSelectedEdges();
+  },
+
+  isMixedSelection: () => {
+    return useSelectionState.getState().isMixedSelection();
+  },
+
+  getSelectionSummary: () => {
+    return useSelectionState.getState().getSelectionSummary();
+  },
+
+  canShowEditActions: () => {
+    return useSelectionState.getState().canShowEditActions();
   },
 
   updateAllIndicators: () => {

@@ -5,14 +5,25 @@ import './style.css';
 import { stageManager } from './utils/stageManager';
 import { LayoutManager } from './layout/LayoutManager';
 import { ThemeManager } from './utils/ThemeManager';
-import { toolbarActionButtons } from './components/ToolbarActionButtons';
+import { toolbarActionButtons } from './components/ToolbarActionButtonsNew';
 
-// Import theme testing utilities (development only)
+// Import testing utilities (development only)
 if (import.meta.env.DEV) {
   import('./utils/theme-test').then(({ runAllThemeTests }) => {
     // Make theme tests available in console
     (window as any).runThemeTests = runAllThemeTests;
     console.log('🧪 Theme tests available: run `runThemeTests()` in console');
+  });
+
+  // Import requirements testing
+  import('./test/requirements-test').then(({ runRequirementsTests }) => {
+    (window as any).runRequirementsTests = runRequirementsTests;
+    console.log('📋 Requirements tests available: run `runRequirementsTests()` in console');
+  });
+
+  // Import deletion system testing
+  import('./tests/index').then(() => {
+    console.log('🗑️ Deletion system tests available: run `window.deletionSystemTests.run()` in console');
   });
 }
 
@@ -99,6 +110,32 @@ await app.init({
 
 // Append canvas to the canvas container instead of body
 canvasContainer.appendChild(app.canvas);
+
+// --- Setup Canvas Background Click Handler for Deselection ---
+function setupCanvasDeselection() {
+  // ตั้งค่า stage ให้รับ interaction events
+  app.stage.eventMode = 'static';
+  app.stage.hitArea = { contains: () => true }; // ทำให้ stage รับ click ได้ทั่วพื้นที่
+  
+  // เพิ่ม click handler สำหรับ stage (พื้นที่ว่าง)
+  app.stage.on('pointerdown', (event) => {
+    // ตรวจสอบว่าคลิกที่พื้นที่ว่างจริงๆ (ไม่ใช่ Node หรือ Edge)
+    if (event.target === app.stage) {
+      console.log('🎯 Clicked on empty canvas - deselecting all elements');
+      
+      // Import และใช้ selection state
+      import('./stores/selectionState').then(({ useSelectionState }) => {
+        const selectionState = useSelectionState.getState();
+        selectionState.deselectAll();
+      });
+    }
+  });
+  
+  console.log('✅ Canvas deselection handler setup complete');
+}
+
+// เรียกใช้ canvas deselection setup
+setupCanvasDeselection();
 
 // --- Initialize Layout System ---
 initializeLayout();

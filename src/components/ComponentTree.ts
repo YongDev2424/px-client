@@ -57,6 +57,10 @@ export class ComponentTree {
 
     // Listen for component name changes from PixiJS
     window.addEventListener('pixi-component-name-changed', this.handleComponentNameChange);
+
+    // Listen for element deletion events
+    window.addEventListener('pixi-component-removed', this.handlePixiComponentRemoved);
+    window.addEventListener('element-deletion-completed', this.handleElementDeletionCompleted);
   }
 
   /**
@@ -494,6 +498,8 @@ export class ComponentTree {
     window.removeEventListener('pixi-selection-change', this.handlePixiSelectionChange);
     window.removeEventListener('selection-cleared', this.handleSelectionCleared);
     window.removeEventListener('pixi-component-name-changed', this.handleComponentNameChange);
+    window.removeEventListener('pixi-component-removed', this.handlePixiComponentRemoved);
+    window.removeEventListener('element-deletion-completed', this.handleElementDeletionCompleted);
 
     // ลบ components ทั้งหมด
     this.components.clear();
@@ -534,6 +540,34 @@ export class ComponentTree {
     
     if (pixiNode && newName) {
       this.updateComponentName(pixiNode, newName);
+    }
+  };
+
+  /**
+   * Handle component removal from PixiJS
+   */
+  private handlePixiComponentRemoved = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const pixiContainer = customEvent.detail?.container;
+    
+    if (pixiContainer) {
+      this.removeComponentByPixiNode(pixiContainer);
+      console.log('🗑️ ComponentTree: Removed component due to PixiJS component removal');
+    }
+  };
+
+  /**
+   * Handle element deletion completion events
+   */
+  private handleElementDeletionCompleted = (event: Event) => {
+    const customEvent = event as CustomEvent;
+    const element = customEvent.detail?.element;
+    const elementType = customEvent.detail?.elementType;
+    
+    if (element && element.container && elementType === 'node') {
+      // ลบ component จาก tree เมื่อ node ถูกลบสำเร็จ
+      this.removeComponentByPixiNode(element.container);
+      console.log('🗑️ ComponentTree: Removed component due to successful deletion');
     }
   };
 }
