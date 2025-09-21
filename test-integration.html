@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Double-Click Integration Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: white;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #666;
+            color: white;
+        }
+        
+        #canvas-container {
+            border: 1px solid #555;
+            background: #1a1a1a;
+            margin: 20px 0;
+        }
+        
+        .event-log {
+            height: 200px;
+            overflow-y: auto;
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .log-double-click {
+            color: #00ff00;
+        }
+        
+        .log-single-click {
+            color: #ffaa00;
+        }
+        
+        .log-drawer {
+            color: #00aaff;
+        }
+        
+        .log-error {
+            color: #ff0000;
+        }
+        
+        .timing-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .timing-card {
+            background: #333;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .timing-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .timing-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🖱️ Double-Click Integration Test</h1>
+        <p>ทดสอบการทำงานของ double-click เพื่อเปิด Property Drawer ตาม Laws of UX</p>
+        
+        <div class="test-section">
+            <h3>Test Controls</h3>
+            <div class="test-controls">
+                <button class="btn btn-primary" onclick="createTestNode()">Create Test Node</button>
+                <button class="btn btn-secondary" onclick="clearCanvas()">Clear Canvas</button>
+                <button class="btn btn-secondary" onclick="clearLog()">Clear Log</button>
+                <button class="btn btn-secondary" onclick="runAutoTest()">Run Auto Test</button>
+            </div>
+            
+            <div class="timing-info">
+                <div class="timing-card">
+                    <div class="timing-value" id="double-click-time">---</div>
+                    <div class="timing-label">Double-Click Time (ms)</div>
+                </div>
+                <div class="timing-card">
+                    <div class="timing-value" id="drawer-open-time">---</div>
+                    <div class="timing-label">Drawer Open Time (ms)</div>
+                </div>
+                <div class="timing-card">
+                    <div class="timing-value" id="total-response-time">---</div>
+                    <div class="timing-label">Total Response Time (ms)</div>
+                </div>
+                <div class="timing-card">
+                    <div class="timing-value" id="doherty-status">⏳</div>
+                    <div class="timing-label">Doherty Threshold (&lt; 400ms)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Canvas Area</h3>
+            <div id="canvas-container"></div>
+            <p><strong>Instructions:</strong> Click once for selection (blue border), double-click to open Property Drawer</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>Event Log</h3>
+            <div class="event-log" id="event-log"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Test timing variables
+        let lastClickTime = 0;
+        let doubleClickStartTime = 0;
+        let drawerOpenStartTime = 0;
+        let testNodeCount = 0;
+
+        // Mock PixiJS และ systems สำหรับการทดสอบ
+        class MockContainer {
+            constructor() {
+                this.x = 0;
+                this.y = 0;
+                this.children = [];
+                this.eventListeners = {};
+                this.nodeData = {};
+            }
+            
+            on(event, callback) {
+                if (!this.eventListeners[event]) {
+                    this.eventListeners[event] = [];
+                }
+                this.eventListeners[event].push(callback);
+            }
+            
+            emit(event, data) {
+                if (this.eventListeners[event]) {
+                    this.eventListeners[event].forEach(callback => callback(data));
+                }
+            }
+            
+            addChild(child) {
+                this.children.push(child);
+            }
+        }
+
+        // Mock Event
+        class MockFederatedPointerEvent {
+            constructor() {
+                this.stopPropagation = () => {};
+                this.global = { x: 0, y: 0 };
+                this.timestamp = Date.now();
+            }
+        }
+
+        // Mock double-click detector
+        function createMockDoubleClickDetector(options = {}) {
+            const config = {
+                threshold: 300,
+                preventSingleClick: false,
+                ...options
+            };
+            
+            let lastClickTime = 0;
+            let clickCount = 0;
+            let singleClickTimeout = null;
+            
+            return (onDoubleClick, onSingleClick) => (event) => {
+                const currentTime = Date.now();
+                const timeDiff = currentTime - lastClickTime;
+                
+                logEvent(`Click detected: ${timeDiff}ms since last click`, 'log-single-click');
+                
+                if (singleClickTimeout) {
+                    clearTimeout(singleClickTimeout);
+                    singleClickTimeout = null;
+                }
+                
+                if (timeDiff < config.threshold && clickCount === 1) {
+                    // Double-click detected
+                    doubleClickStartTime = Date.now();
+                    const doubleClickTime = timeDiff;
+                    
+                    logEvent(`🖱️ Double-click detected: ${doubleClickTime}ms`, 'log-double-click');
+                    updateTimingDisplay('double-click-time', doubleClickTime);
+                    
+                    clickCount = 0;
+                    lastClickTime = 0;
+                    
+                    // Execute double-click callback
+                    if (onDoubleClick) {
+                        onDoubleClick();
+                    }
+                    
+                    return true; // Indicate double-click occurred
+                } else {
+                    // First click or single-click
+                    clickCount = 1;
+                    lastClickTime = currentTime;
+                    
+                    if (onSingleClick && !config.preventSingleClick) {
+                        singleClickTimeout = setTimeout(() => {
+                            if (clickCount === 1) {
+                                logEvent(`🖱️ Single-click confirmed`, 'log-single-click');
+                                onSingleClick();
+                            }
+                            clickCount = 0;
+                        }, config.singleClickDelay || 350);
+                    }
+                    
+                    return false; // Indicate single-click
+                }
+            };
+        }
+
+        // Mock drawer actions
+        const mockDrawerActions = {
+            openForNode: (container, nodeId, options = {}) => {
+                drawerOpenStartTime = Date.now();
+                const drawerOpenTime = drawerOpenStartTime - doubleClickStartTime;
+                const totalResponseTime = drawerOpenStartTime - lastClickTime;
+                
+                logEvent(`🗂️ Opening drawer for node: ${nodeId}`, 'log-drawer');
+                logEvent(`   - Drawer open time: ${drawerOpenTime}ms`, 'log-drawer');
+                logEvent(`   - Total response time: ${totalResponseTime}ms`, 'log-drawer');
+                
+                updateTimingDisplay('drawer-open-time', drawerOpenTime);
+                updateTimingDisplay('total-response-time', totalResponseTime);
+                
+                // Check Doherty Threshold
+                const doherty = totalResponseTime < 400;
+                updateTimingDisplay('doherty-status', doherty ? '✅' : '❌');
+                
+                if (doherty) {
+                    logEvent(`✅ Doherty Threshold met: ${totalResponseTime}ms < 400ms`, 'log-drawer');
+                } else {
+                    logEvent(`❌ Doherty Threshold exceeded: ${totalResponseTime}ms >= 400ms`, 'log-error');
+                }
+                
+                // Mock drawer opening animation
+                setTimeout(() => {
+                    logEvent(`✨ Drawer opened successfully for ${nodeId}`, 'log-drawer');
+                }, 100);
+                
+                return { success: true, data: { message: `Drawer opened for node: ${nodeId}` } };
+            }
+        };
+
+        // Mock property actions
+        const mockPropertyActions = {
+            getPropertyCount: () => Math.floor(Math.random() * 10) + 1,
+            getProperty: (key) => ({ value: `Mock ${key}` }),
+            createTextProperty: () => {},
+            createArrayProperty: () => {}
+        };
+
+        // Mock selection manager
+        const mockSelectionManager = {
+            toggleSelection: (element) => {
+                logEvent(`🎯 Selection toggled for element`, 'log-single-click');
+            }
+        };
+
+        // Mock connection state manager
+        const mockConnectionStateManager = {
+            togglePin: () => {
+                logEvent(`📌 Connection points toggled`, 'log-single-click');
+                return Math.random() > 0.5;
+            },
+            shouldShowConnections: () => Math.random() > 0.5
+        };
+
+        // Utility functions
+        function logEvent(message, className = '') {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateTimingDisplay(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = typeof value === 'string' ? value : `${value}`;
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = '';
+        }
+
+        function clearCanvas() {
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = '';
+            testNodeCount = 0;
+        }
+
+        // Create test node with mock double-click functionality
+        function createTestNode() {
+            testNodeCount++;
+            const nodeId = `test-node-${testNodeCount}`;
+            
+            // Create visual node
+            const nodeElement = document.createElement('div');
+            nodeElement.style.cssText = `
+                width: 200px;
+                height: 100px;
+                background: #2a2a2a;
+                border: 2px solid #666;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 20px;
+                cursor: pointer;
+                user-select: none;
+                transition: border-color 0.2s;
+                position: relative;
+            `;
+            nodeElement.textContent = `Test Node ${testNodeCount}`;
+            
+            // Create mock container
+            const mockContainer = new MockContainer();
+            mockContainer.nodeData = {
+                nodeId: nodeId,
+                labelText: `Test Node ${testNodeCount}`,
+                nodeType: 'c4box'
+            };
+            
+            // Setup double-click detector
+            let isDoubleClickActive = false;
+            let selectableElementRef = { id: nodeId, type: 'node' };
+            
+            const doubleClickDetector = createMockDoubleClickDetector({
+                threshold: 300,
+                preventSingleClick: false
+            });
+            
+            const handleClick = doubleClickDetector(
+                // Double-click callback
+                () => {
+                    logEvent(`🎯 Double-click detected on ${nodeId}`, 'log-double-click');
+                    isDoubleClickActive = true;
+                    
+                    // Visual feedback
+                    nodeElement.style.borderColor = '#00ff00';
+                    
+                    // Open Property Drawer
+                    mockDrawerActions.openForNode(mockContainer, nodeId, {
+                        tab: 'properties',
+                        nodeName: mockPropertyActions.getProperty('name')?.value || `Test Node ${testNodeCount}`,
+                        autoFocus: true
+                    });
+                    
+                    // Reset flag
+                    setTimeout(() => {
+                        isDoubleClickActive = false;
+                        nodeElement.style.borderColor = '#666';
+                    }, 1000);
+                },
+                // Single-click callback
+                () => {
+                    if (!isDoubleClickActive) {
+                        logEvent(`🖱️ Single-click detected on ${nodeId}`, 'log-single-click');
+                        
+                        // Visual feedback for selection
+                        nodeElement.style.borderColor = '#0066cc';
+                        setTimeout(() => {
+                            if (!isDoubleClickActive) {
+                                nodeElement.style.borderColor = '#666';
+                            }
+                        }, 500);
+                        
+                        // Selection and connection point behaviors
+                        mockSelectionManager.toggleSelection(selectableElementRef);
+                        mockConnectionStateManager.togglePin(mockContainer);
+                    }
+                }
+            );
+            
+            // Attach event listener
+            nodeElement.addEventListener('mousedown', (e) => {
+                lastClickTime = Date.now();
+                handleClick(new MockFederatedPointerEvent());
+            });
+            
+            // Add to canvas
+            document.getElementById('canvas-container').appendChild(nodeElement);
+            
+            logEvent(`✨ Created ${nodeId}`, 'log-drawer');
+        }
+
+        // Auto test function
+        function runAutoTest() {
+            logEvent(`🤖 Starting automated test...`, 'log-drawer');
+            
+            // Clear canvas and create fresh node
+            clearCanvas();
+            createTestNode();
+            
+            const node = document.querySelector('#canvas-container > div');
+            
+            if (!node) {
+                logEvent(`❌ No test node found`, 'log-error');
+                return;
+            }
+            
+            // Simulate double-click with timing
+            setTimeout(() => {
+                logEvent(`🤖 Simulating first click...`, 'log-drawer');
+                node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            }, 500);
+            
+            setTimeout(() => {
+                logEvent(`🤖 Simulating second click (double-click)...`, 'log-drawer');
+                node.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            }, 700); // 200ms between clicks
+            
+            setTimeout(() => {
+                logEvent(`🤖 Automated test completed`, 'log-drawer');
+            }, 1500);
+        }
+
+        // Global functions for buttons
+        window.createTestNode = createTestNode;
+        window.clearCanvas = clearCanvas;
+        window.clearLog = clearLog;
+        window.runAutoTest = runAutoTest;
+
+        // Initialize
+        logEvent(`🚀 Double-Click Integration Test initialized`, 'log-drawer');
+        logEvent(`📋 Click "Create Test Node" to start testing`, 'log-drawer');
+    </script>
+</body>
+</html>

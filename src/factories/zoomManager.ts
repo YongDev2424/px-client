@@ -313,7 +313,7 @@ export function createZoomManager(): ZoomManagerInstance {
       } = options;
 
       // คำนวณ zoom level และตำแหน่ง
-      const zoomLevel = pixiApp.stage.toGlobal ? 
+      const zoomLevel = pixiApp.stage.toGlobal !== undefined ? 
         // Use the exposed method on the instance
         (() => {
           const {

@@ -30,6 +30,7 @@ if (import.meta.env.DEV) {
 // --- Initialize Layout System ---
 let layoutManager: LayoutManager;
 let leftPanel: any; // Will be imported from LeftPanel
+let rightPanel: any; // Will be imported from RightPanel
 let themeManager: ThemeManager;
 
 function initializeLayout() {
@@ -208,9 +209,106 @@ async function initializeLeftPanel() {
 // Initialize Left Panel after app is ready
 initializeLeftPanel();
 
+// --- Initialize Right Panel for Properties ---
+async function initializeRightPanel() {
+  try {
+    const { RightPanel } = await import('./components/RightPanel');
+    rightPanel = new RightPanel(app);
+    
+    // Make rightPanel globally available for useDrawerActions
+    (window as any).rightPanel = rightPanel;
+    
+    // Listen for property changes from RightPanel
+    window.addEventListener('property-changed', async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { elementId, elementType, propertyKey, propertyValue } = customEvent.detail;
+      
+      console.log('🏷️ Property changed:', {
+        elementId,
+        elementType,
+        propertyKey,
+        propertyValue
+      });
+      
+      try {
+        // Update property store
+        const { usePropertyState } = await import('./stores/propertyState');
+        const propertyStore = usePropertyState.getState();
+        
+        // Check if property exists, if not add it, otherwise update it
+        const existingProperty = propertyStore.getProperty(elementId, propertyKey);
+        
+        if (existingProperty) {
+          const result = propertyStore.updateProperty(elementId, propertyKey, propertyValue);
+          if (result.success) {
+            console.log('✅ Property updated in store:', propertyKey);
+          } else {
+            console.error('❌ Failed to update property:', result.error);
+          }
+        } else {
+          // Add new property
+          const result = propertyStore.addProperty(elementId, {
+            key: propertyKey,
+            value: propertyValue,
+            type: 'text', // Default type, will be inferred
+            order: Date.now(),
+            metadata: {
+              category: 'Basic Properties',
+              description: `Property ${propertyKey}`,
+              isRequired: false,
+              isReadOnly: false
+            }
+          });
+          if (result.success) {
+            console.log('✅ New property added to store:', propertyKey);
+          } else {
+            console.error('❌ Failed to add property:', result.error);
+          }
+        }
+        
+        // Update visual component if needed
+        // This will update property badges on C4Box components
+        const elementContainer = app.stage.children.find(child => 
+          (child as any).nodeData?.nodeId === elementId
+        );
+        
+        if (elementContainer && (elementContainer as any).updatePropertyBadges) {
+          (elementContainer as any).updatePropertyBadges();
+        }
+        
+      } catch (error) {
+        console.error('❌ Error updating property store:', error);
+      }
+    });
+    
+    console.log('✅ Right Panel initialized successfully');
+    
+    // Verify initialization immediately
+    setTimeout(() => {
+      if (rightPanel) {
+        console.log('🎉 RightPanel verification: Initialization successful!');
+        console.log('📋 Ready for testing. Available commands:');
+        console.log('   - testRightPanel() - Test panel state and elements');
+        console.log('   - testCompletePropertyWorkflow() - Full workflow test');
+        console.log('   - testPropertyBadgeBehavior() - Test property badge clicks');
+      } else {
+        console.error('⚠️ RightPanel verification failed: Instance not found');
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize Right Panel:', error);
+    console.log('🔍 Error details:', error);
+  }
+}
+
+// Initialize Right Panel after app is ready
+initializeRightPanel();
+
 // --- Initialize Stage Manager for Edge System ---
 stageManager.initialize(app);
 console.log('🎯 Edge System พร้อมใช้งาน - คลิกที่จุดเชื่อมต่อเพื่อสร้าง Edge!');
+
 
 // --- Initialize Grid Dots ---
 let gridDots: any = null;
@@ -323,11 +421,246 @@ if (import.meta.env.DEV) {
     }
   };
   
+  // เพิ่มฟังก์ชันทดสอบ RightPanel
+  (window as any).testRightPanel = () => {
+    console.log('🔍 Testing RightPanel initialization...');
+    
+    if (rightPanel) {
+      console.log('✅ RightPanel instance found');
+      console.log('🗂️ RightPanel state:', {
+        isOpen: rightPanel.isOpen(),
+        width: rightPanel.getState().width,
+        selectedElementId: rightPanel.getSelectedElementId(),
+        state: rightPanel.getState()
+      });
+      
+      // Test HTML elements
+      const panel = document.getElementById('right-panel');
+      const title = document.getElementById('panel-title');
+      const content = document.getElementById('property-content');
+      
+      console.log('🏷️ HTML Elements check:', {
+        'right-panel': !!panel,
+        'panel-title': !!title,
+        'property-content': !!content,
+        'panel-classes': panel?.className,
+        'is-collapsed': panel?.classList.contains('collapsed')
+      });
+      
+    } else {
+      console.log('❌ RightPanel not found');
+      console.log('🔍 Checking window.rightPanel:', (window as any).rightPanel);
+    }
+  };
+  
+  (window as any).forceOpenPanel = () => {
+    if (rightPanel) {
+      rightPanel.openPanel();
+      console.log('🗂️ Force opened RightPanel');
+    } else {
+      console.log('❌ RightPanel not found');
+    }
+  };
+  
+  // เพิ่มฟังก์ชันทดสอบ double-click integration
+  (window as any).testDoubleClickIntegration = () => {
+    const c4boxes = app.stage.children.filter(child => 
+      (child as any).nodeData && (child as any).nodeData.nodeType === 'c4box'
+    );
+    
+    if (c4boxes.length > 0) {
+      const testBox = c4boxes[0];
+      const nodeId = (testBox as any).nodeData.nodeId;
+      
+      console.log('🧪 Testing double-click integration with C4Box:', nodeId);
+      
+      // Import และทดสอบ drawerActions
+      import('./composables/useDrawerActions').then(({ useDrawerActions }) => {
+        const drawerActions = useDrawerActions();
+        const result = drawerActions.openForNode(testBox, nodeId, {
+          tab: 'properties',
+          nodeName: 'Test Node',
+          autoFocus: true
+        });
+        
+        console.log('🗂️ Manual drawer open result:', result);
+      });
+    } else {
+      console.log('❌ No C4Box found. Create one first.');
+    }
+  };
+  
+  // เพิ่มฟังก์ชันทดสอบ complete property workflow  
+  (window as any).testCompletePropertyWorkflow = async () => {
+    console.log('🧪 Testing complete property workflow...');
+    
+    // First, verify RightPanel is working
+    if (!rightPanel) {
+      console.error('❌ RightPanel not initialized! Cannot proceed with test.');
+      console.log('💡 Try refreshing the page or check console for initialization errors.');
+      return;
+    }
+    
+    console.log('✅ RightPanel verification passed');
+    
+    // 1. Create a test node if not exists
+    const existingBoxes = app.stage.children.filter(child => 
+      (child as any).nodeData && (child as any).nodeData.nodeType === 'c4box'
+    );
+    
+    let testBox;
+    let nodeId;
+    
+    if (existingBoxes.length === 0) {
+      // สร้าง test node
+      testBox = createC4Box(app, 'Test System', 0x242424, false);
+      testBox.position.set(100, 100);
+      app.stage.addChild(testBox);
+      nodeId = (testBox as any).nodeData.nodeId;
+      console.log('✅ Created test node:', nodeId);
+    } else {
+      testBox = existingBoxes[0];
+      nodeId = (testBox as any).nodeData.nodeId;
+      console.log('✅ Using existing node:', nodeId);
+    }
+    
+    // 2. Test property store operations
+    try {
+      const { usePropertyState } = await import('./stores/propertyState');
+      const propertyStore = usePropertyState.getState();
+      
+      // Add some test properties
+      const testProperties = [
+        { key: 'description', value: 'Test system for property workflow', type: 'text' as const },
+        { key: 'technology', value: 'TypeScript', type: 'text' as const },
+        { key: 'port', value: 8080, type: 'number' as const },
+        { key: 'isActive', value: true, type: 'boolean' as const },
+        { key: 'tags', value: ['test', 'system', 'demo'], type: 'array' as const }
+      ];
+      
+      for (const prop of testProperties) {
+        const result = propertyStore.addProperty(nodeId, {
+          key: prop.key,
+          value: prop.value,
+          type: prop.type,
+          order: Date.now(),
+          metadata: {
+            category: prop.key === 'description' ? 'Documentation' : 
+                     prop.key === 'technology' ? 'Technical' : 'Basic Properties',
+            description: `Test property: ${prop.key}`,
+            isRequired: false
+          }
+        });
+        
+        if (result.success) {
+          console.log(`✅ Added property: ${prop.key}`);
+        } else {
+          console.log(`❌ Failed to add property ${prop.key}:`, result.error);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Property store error:', error);
+    }
+    
+    // 3. Test RightPanel opening
+    setTimeout(() => {
+      import('./composables/useDrawerActions').then(({ useDrawerActions }) => {
+        const drawerActions = useDrawerActions();
+        const result = drawerActions.openForNode(testBox, nodeId, {
+          tab: 'properties',
+          nodeName: 'Test System',
+          autoFocus: false,
+          autoOpen: true,  // เปิด panel เพื่อแสดงผลลัพธ์ใน test
+          loadExistingProperties: true
+        });
+        
+        console.log('🗂️ RightPanel opened with test properties:', result);
+        
+        if (result.success) {
+          console.log('🎉 Complete property workflow test successful!');
+          console.log('👆 You should now see the RightPanel with test properties');
+          console.log('✏️ Try editing properties to test property synchronization');
+        }
+      });
+    }, 500);
+  };
+  
+  // เพิ่มฟังก์ชันทดสอบ property focus behavior
+  (window as any).testPropertyFocus = () => {
+    console.log('🎯 Testing property focus behavior...');
+    
+    const c4boxes = app.stage.children.filter(child => 
+      (child as any).nodeData && (child as any).nodeData.nodeType === 'c4box'
+    );
+    
+    if (c4boxes.length > 0) {
+      const testBox = c4boxes[0];
+      const nodeId = (testBox as any).nodeData.nodeId;
+      
+      console.log('📝 Testing focus on "description" property...');
+      
+      import('./composables/useDrawerActions').then(({ useDrawerActions }) => {
+        const drawerActions = useDrawerActions();
+        const result = drawerActions.openForNode(testBox, nodeId, {
+          tab: 'properties',
+          nodeName: 'Test Node',
+          autoOpen: true,
+          focusProperty: 'description',  // Focus specific property
+          loadExistingProperties: true
+        });
+        
+        console.log('🎯 Property focus test result:', result);
+        console.log('✨ The "description" property should be highlighted and focused');
+      });
+    } else {
+      console.log('❌ No C4Box found. Create one first with testCompletePropertyWorkflow()');
+    }
+  };
+  
+  // เพิ่มฟังก์ชันทดสอบ property badge behavior
+  (window as any).testPropertyBadgeBehavior = () => {
+    console.log('🏷️ Testing property badge behavior...');
+    
+    const c4boxes = app.stage.children.filter(child => 
+      (child as any).nodeData && (child as any).nodeData.nodeType === 'c4box'
+    );
+    
+    if (c4boxes.length > 0) {
+      const testBox = c4boxes[0];
+      const propertyBadge = (testBox as any).propertyBadge;
+      
+      if (propertyBadge) {
+        console.log('✨ Property badge found! You can:');
+        console.log('  1. Click the property badge to open RightPanel');
+        console.log('  2. Double-click on the node (should NOT open panel)');
+        console.log('  3. Panel should only open when clicking property badge');
+        
+        // Highlight property badge for visual testing
+        propertyBadge.tint = 0x00ff00; // Green highlight
+        setTimeout(() => {
+          propertyBadge.tint = 0xffffff; // Reset to white
+        }, 2000);
+        
+      } else {
+        console.log('❌ Property badge not found on the node');
+      }
+    } else {
+      console.log('❌ No C4Box found. Create one first with testCompletePropertyWorkflow()');
+    }
+  };
+  
   console.log('🧪 Debug commands available:');
   console.log('  - debugSelection() - Show selection state');
   console.log('  - testToolbarButtons() - Test toolbar buttons');
   console.log('  - manualShowToolbar() - Manually show toolbar buttons');
   console.log('  - manualHideToolbar() - Manually hide toolbar buttons');
+  console.log('  - testRightPanel() - Test RightPanel state');
+  console.log('  - forceOpenPanel() - Force open RightPanel');
+  console.log('  - testDoubleClickIntegration() - Test double-click → drawer flow');
+  console.log('  - testCompletePropertyWorkflow() - Test complete property system');
+  console.log('  - testPropertyFocus() - Test property focus and highlighting');
+  console.log('  - testPropertyBadgeBehavior() - Test property badge click behavior');
 }
 
 console.log('✅ Toolbar Action Buttons initialized successfully');
@@ -512,6 +845,9 @@ window.addEventListener('beforeunload', () => {
   }
   if (leftPanel && leftPanel.destroy) {
     leftPanel.destroy();
+  }
+  if (rightPanel && rightPanel.destroy) {
+    rightPanel.destroy();
   }
   if (canvasContainerEnhancement && canvasContainerEnhancement.destroy) {
     canvasContainerEnhancement.destroy();

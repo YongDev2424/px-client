@@ -7,7 +7,7 @@
  * ออกแบบมาให้เป็น function-based และเข้ากันได้กับ existing codebase
  */
 
-import { PropertyValue } from '../stores/nodeState';
+import type { PropertyValue } from './propertyTypes';
 
 // ===== ENHANCED PROPERTY SYSTEM =====
 

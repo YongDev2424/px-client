@@ -1,7 +1,12 @@
 // src/components/Edge.ts
 
-import { Container, Graphics, Point } from 'pixi.js';
+import { Container, Graphics, Point, FederatedPointerEvent } from 'pixi.js';
 import { createEditableLabel } from './EditableLabel';
+
+// Enhanced Property System Integration (Function-Based)
+import { usePropertyActions, useDrawerActions } from '../composables';
+import { PropertyCountBadge, createPropertyCountBadge } from './PropertyCountBadge';
+import { createSimpleDoubleClickHandler } from '../utils/doubleClickDetector';
 
 /**
  * คำนวณจุดกึ่งกลางระหว่างสองจุด
@@ -238,6 +243,9 @@ export function createEdge(
   // สร้าง Container หลักสำหรับ Edge
   const edgeContainer = new Container();
   
+  // สร้าง unique edgeId สำหรับ Enhanced Property System
+  const edgeId = `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   // คำนวณตำแหน่งจุดเชื่อมต่อของทั้งสอง Node (ใช้ local coordinates เพื่อรองรับ zoom)
   const startPoint = getConnectionPointPosition(sourceNode, sourceSide, true);
   const endPoint = getConnectionPointPosition(targetNode, targetSide, true);
@@ -245,6 +253,25 @@ export function createEdge(
   console.log('✅ สร้าง Edge:');
   console.log('📍 Source (local):', startPoint, 'side:', sourceSide);
   console.log('📍 Target (local):', endPoint, 'side:', targetSide);
+  
+  // Initialize Enhanced Property System สำหรับ Edge (Function-Based)
+  const propertyActions = usePropertyActions(edgeId);
+  const drawerActions = useDrawerActions();
+  
+  // สร้าง default properties สำหรับ Edge
+  propertyActions.createTextProperty('label', labelText, { 
+    required: true, 
+    metadata: { category: 'basic', order: 0 } 
+  });
+  propertyActions.createTextProperty('type', 'relationship', {
+    metadata: { category: 'basic', order: 1 }
+  });
+  propertyActions.createTextProperty('description', '', {
+    metadata: { category: 'basic', order: 2 }
+  });
+  propertyActions.createArrayProperty('tags', [], {
+    metadata: { category: 'classification', order: 3, maxItems: 5 }
+  });
   
   // สร้าง Graphics สำหรับเส้นเดียวกัน (ไม่แบ่งเป็นสองส่วน)
   const lineGraphics = new Graphics();
@@ -267,6 +294,21 @@ export function createEdge(
   lineGraphics.on('pointerout', () => {
     lineGraphics.tint = 0x999999; // กลับเป็นสีเทาออกขาว
   });
+  
+  // สร้าง Double-Click Handler สำหรับ Edge Line (Function-Based)
+  const handleEdgeDoubleClick = createSimpleDoubleClickHandler(() => {
+    console.log('🖱️ Double-click detected on Edge:', edgeId);
+    
+    // เปิด Property Drawer ด้วย Enhanced Property System
+    drawerActions.openForEdge(edgeContainer, edgeId, {
+      tab: 'properties',
+      edgeName: propertyActions.getProperty('label')?.value as string || labelText,
+      autoFocus: true
+    });
+  }, 300); // Doherty Threshold: 300ms
+  
+  // เพิ่ม double-click detection สำหรับ edge line
+  lineGraphics.on('pointerdown', handleEdgeDoubleClick);
   
   // เพิ่มเส้นเข้าใน Container
   edgeContainer.addChild(lineGraphics);
@@ -295,9 +337,47 @@ export function createEdge(
   // สร้าง Floating Label ที่มีดีไซน์คล้าย Node
   const labelContainer = createFloatingEdgeLabel(labelText, (newText: string, oldText: string) => {
     console.log(`Edge label เปลี่ยนจาก "${oldText}" เป็น "${newText}"`);
+    // อัปเดต label property
+    propertyActions.updateProperty('label', newText);
     // อัปเดต metadata
     (edgeContainer as any).edgeData.labelText = newText;
   });
+
+  // เพิ่ม double-click สำหรับ label container ด้วย
+  const handleLabelDoubleClick = createSimpleDoubleClickHandler(() => {
+    console.log('🖱️ Double-click detected on Edge Label:', edgeId);
+    drawerActions.openForEdge(edgeContainer, edgeId, {
+      tab: 'properties',
+      edgeName: propertyActions.getProperty('label')?.value as string || labelText,
+      autoFocus: true
+    });
+  }, 300);
+  
+  labelContainer.on('pointerdown', handleLabelDoubleClick);
+
+  // สร้าง PropertyCountBadge สำหรับ Edge (แสดงบน label)
+  const propertyBadge = createPropertyCountBadge({
+    count: propertyActions.getPropertyCount(),
+    position: 'top-right',
+    hasChanges: false,
+    size: 'small', // ใช้ขนาดเล็กสำหรับ edge
+    theme: 'auto',
+    onClick: () => {
+      console.log('🎯 Edge PropertyCountBadge คลิก - เปิด Property Drawer สำหรับ Edge:', edgeId);
+      drawerActions.openForEdge(edgeContainer, edgeId, {
+        tab: 'properties',
+        edgeName: propertyActions.getProperty('label')?.value as string || labelText
+      });
+    }
+  });
+
+  // เพิ่ม badge เข้าใน label container
+  labelContainer.addChild(propertyBadge);
+  
+  // จัดตำแหน่ง PropertyCountBadge (top-right of label)
+  const badgeOffset = { x: 6, y: -6 }; // เล็กกว่า node badge
+  propertyBadge.x = (labelContainer.width / 2) + badgeOffset.x;
+  propertyBadge.y = -(labelContainer.height / 2) + badgeOffset.y;
 
   // วางตำแหน่ง Label ตรงกลาง Edge (floating เหนือเส้น)
   const labelMidPoint = getMidPoint(startPoint, endPoint);
@@ -307,17 +387,46 @@ export function createEdge(
   // เพิ่ม Label เข้าใน Edge Container
   edgeContainer.addChild(labelContainer);
   
-  // เก็บข้อมูล metadata ไว้ใน Container (สำหรับใช้ภายหลัง)
+  // เก็บ Enhanced metadata ไว้ใน Container (สำหรับใช้ภายหลัง)
   (edgeContainer as any).edgeData = {
+    edgeId: edgeId,               // เพิ่ม unique edgeId
     sourceNode,
     targetNode,
     startPoint: startPoint.clone(),
     endPoint: endPoint.clone(),
     labelText: labelText,
     labelContainer: labelContainer,
-    sourceSide: sourceSide,    // เก็บ side ของ source
-    targetSide: targetSide     // เก็บ side ของ target
+    propertyBadge: propertyBadge, // เพิ่ม property badge reference
+    sourceSide: sourceSide,       // เก็บ side ของ source
+    targetSide: targetSide,       // เก็บ side ของ target
+    hasProperties: true,          // รองรับ Enhanced Property System
+    propertyCount: propertyActions.getPropertyCount(),
+    edgeType: 'relationship'      // ประเภท edge
   };
+
+  // Setup Property Event Listeners สำหรับ Edge (Function-Based)
+  const updateEdgePropertyBadge = () => {
+    const currentCount = propertyActions.getPropertyCount();
+    propertyBadge.updateCount(currentCount, false);
+    
+    // อัพเดท metadata
+    (edgeContainer as any).edgeData.propertyCount = currentCount;
+    
+    console.log('🏷️ Edge property count updated:', edgeId, 'Count:', currentCount);
+  };
+
+  // Listen for property changes สำหรับ Edge
+  window.addEventListener('property-changed', (event: CustomEvent) => {
+    if (event.detail.elementId === edgeId) {
+      updateEdgePropertyBadge();
+    }
+  });
+
+  window.addEventListener('properties-batch-updated', (event: CustomEvent) => {
+    if (event.detail.elementId === edgeId) {
+      updateEdgePropertyBadge();
+    }
+  });
   
   // 🔗 เพิ่ม selectable capability ให้กับ Edge
   const edgeData = {

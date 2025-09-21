@@ -64,6 +64,39 @@
           <!-- PixiJS canvas will be inserted here -->
         </section>
       </main>
+
+      <!-- Right Panel for Properties -->
+      <aside id="right-panel" class="right-panel">
+        <div class="panel-header">
+          <h3 id="panel-title" class="panel-title">Properties</h3>
+          <button id="toggle-right-panel-btn" class="toggle-btn" aria-label="Toggle right panel">
+            <span class="toggle-icon">›</span>
+          </button>
+        </div>
+        <div class="panel-content">
+          <div id="property-tabs" class="property-tabs">
+            <button class="tab-btn active" data-tab="properties">Properties</button>
+            <button class="tab-btn" data-tab="styles">Styles</button>
+            <button class="tab-btn" data-tab="metadata">Metadata</button>
+          </div>
+          <div id="property-search" class="property-search">
+            <input type="text" id="property-search-input" placeholder="Search properties..." />
+            <button id="clear-search-btn" class="clear-search-btn">×</button>
+          </div>
+          <div id="property-content" class="property-content">
+            <div class="empty-state">
+              <p>No element selected</p>
+              <p class="empty-state-hint">Double-click on a node or edge to edit properties</p>
+            </div>
+          </div>
+        </div>
+        <div id="right-resize-handle" class="resize-handle resize-handle-left" aria-label="Resize panel"></div>
+      </aside>
+
+      <!-- Expand Button for Right Panel (shown when panel is collapsed) -->
+      <button id="expand-right-panel-btn" class="expand-btn expand-btn-right" aria-label="Expand right panel">
+        <span class="expand-icon">‹</span>
+      </button>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

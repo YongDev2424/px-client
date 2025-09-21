@@ -207,6 +207,282 @@ body {
   background-color: var(--selected-color);
 }
 
+/* ===== Right Panel ===== */
+.right-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  transition: transform var(--transition-medium);
+  transform: translateX(0);
+}
+
+/* Right panel collapsed state */
+.right-panel.collapsed {
+  transform: translateX(100%);
+}
+
+/* Right panel resize handle */
+.resize-handle-left {
+  left: 0;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+/* Property tabs */
+.property-tabs {
+  display: flex;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--text-sm);
+  position: relative;
+}
+
+.tab-btn:hover {
+  background-color: var(--hover-color);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  background-color: var(--bg-secondary);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--primary-color);
+}
+
+/* Property search */
+.property-search {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.property-search input {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.property-search input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color-alpha);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-lg);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.clear-search-btn:hover {
+  background-color: var(--hover-color);
+  color: var(--text-primary);
+}
+
+/* Property content */
+.property-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+}
+
+/* Property categories */
+.property-category {
+  margin-bottom: var(--space-4);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-2);
+}
+
+.category-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.category-count {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* Property items */
+.property-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.property-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.property-input {
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast);
+}
+
+.property-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color-alpha);
+}
+
+.property-input:read-only {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.property-checkbox {
+  width: auto;
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+
+/* Property focus and highlighting */
+.property-focused {
+  background-color: var(--primary-color-alpha) !important;
+  border: 2px solid var(--primary-color) !important;
+  border-radius: 6px !important;
+  padding: var(--space-2) !important;
+  margin: var(--space-1) 0 !important;
+  box-shadow: 0 0 8px var(--primary-color-alpha) !important;
+  animation: property-focus-pulse 0.6s ease-in-out !important;
+}
+
+@keyframes property-focus-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 8px var(--primary-color-alpha);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 16px var(--primary-color-alpha);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px var(--primary-color-alpha);
+  }
+}
+
+.property-focused .property-label {
+  color: var(--primary-color) !important;
+  font-weight: 600 !important;
+}
+
+.property-focused .property-input {
+  border-color: var(--primary-color) !important;
+  background-color: var(--bg-primary) !important;
+}
+
+/* Array properties */
+.property-array {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.array-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.array-item .property-input {
+  flex: 1;
+}
+
+.array-remove-btn {
+  background-color: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.array-remove-btn:hover {
+  background-color: var(--danger-color-dark);
+  transform: scale(1.05);
+}
+
+.array-add-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+
+.array-add-btn:hover {
+  background-color: var(--primary-color-dark);
+}
+
 /* ===== Expand Button (when panel is collapsed) ===== */
 .expand-btn {
   position: fixed;
@@ -228,6 +504,20 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Right panel expand button */
+.expand-btn-right {
+  left: auto;
+  right: 0;
+  border-left: 1px solid var(--border-color);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.expand-btn-right:hover {
+  transform: translateY(-50%) translateX(-2px);
 }
 
 /* Show expand button when panel is collapsed */

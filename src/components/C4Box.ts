@@ -11,6 +11,11 @@ import { makeSelectable, selectionManager } from '../stores/selectionState';
 import { C4BoxEnhancer } from './C4BoxEnhancer';
 import type { C4StyleOptions } from '../utils/C4Themes';
 
+// Enhanced Property System Integration (Function-Based)
+import { usePropertyActions, useDrawerActions } from '../composables';
+import { createPropertyCountBadge } from './PropertyCountBadge';
+import { createDoubleClickDetector } from '../utils/doubleClickDetector';
+
 /**
  * Type สำหรับระบุตำแหน่งของ Connection Point บน C4Box
  * ใช้สำหรับกำหนดว่า Connection Point จะอยู่ด้านไหนของกล่อง
@@ -29,7 +34,7 @@ function createConnectionPoint(side: ConnectionSide): Graphics {
 
   // 2. ใช้เมธอดต่างๆ เพื่อ "สั่ง" ให้วาดลงบนผืนผ้าใบนั้น (ตาม PixiJS v8 API)
   point.circle(0, 0, 5); // วาดวงกลมรัศมี 5 pixels
-  point.fill(0xFFFFFF); // สีขาว (เปลี่ยนจากสีดำเป็นสีขาว)
+  point.fill(0xFFFFFF); // สีขาว (PixiJS v8 pattern: วาดก่อน แล้วเรียก fill)
 
   // 3. ตั้งค่าการโต้ตอบให้กับ "ผืนผ้าใบ" โดยตรง (เฉพาะเมื่อแสดงผล)
   point.eventMode = 'static';
@@ -144,11 +149,15 @@ export function createC4Box(
   // 1. สร้าง Container และส่วนประกอบภาพทั้งหมด
   const boxContainer = new Container();
 
-  // สร้าง outlined box แทนการใช้สีเต็ม
+  // สร้าง unique nodeId สำหรับ Enhanced Property System
+  const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // สร้าง outlined box แทนการใช้สีเต็ม (PixiJS v8 pattern)
   const boxGraphics = new Graphics()
-    .rect(0, 0, 200, 100)
-    .fill(0x1e1e1e) // พื้นหลังเป็นสีเดียวกับ canvas
-    .stroke({ width: 2, color: 0x999999 }); // ขอบสีเทาออกขาว
+    .fill(0x1e1e1e) // กำหนดสี fill ก่อน
+    .rect(0, 0, 200, 100) // วาด rectangle
+    .fill() // apply fill
+    .stroke({ width: 2, color: 0x999999 }); // เพิ่มขอบสีเทาออกขาว
   // สร้าง Label ที่แก้ไขได้สำหรับ Node
   const boxLabel = createEditableLabel({
     text: labelText,
@@ -178,7 +187,47 @@ export function createC4Box(
   });
   const connectionPoints = createAllConnectionPoints(200, 100);
 
-  // 2. นำส่วนประกอบทั้งหมดมาใส่ใน Container (ประกอบร่าง)
+  // 2. Initialize Enhanced Property System (Function-Based)
+  const propertyActions = usePropertyActions(nodeId);
+  const drawerActions = useDrawerActions();
+
+  // สร้าง default properties สำหรับ C4 Node
+  propertyActions.createTextProperty('name', labelText, { 
+    required: true, 
+    metadata: { category: 'basic', order: 0 } 
+  });
+  propertyActions.createTextProperty('type', 'C4 Component', {
+    metadata: { category: 'basic', order: 1 }
+  });
+  propertyActions.createArrayProperty('technologies', [], {
+    metadata: { category: 'technical', order: 2, maxItems: 10 }
+  });
+  propertyActions.createTextProperty('description', '', {
+    metadata: { category: 'basic', order: 3 }
+  });
+
+  // สร้าง PropertyCountBadge ตาม PixiJS v8 patterns
+  const propertyBadge = createPropertyCountBadge({
+    count: propertyActions.getPropertyCount(),
+    position: 'top-right',
+    hasChanges: false,
+    size: 'medium',
+    theme: 'auto',
+    onClick: () => {
+      console.log('🎯 PropertyCountBadge คลิก - เปิด Property Drawer สำหรับ Node:', nodeId);
+      drawerActions.openForNode(boxContainer, nodeId, {
+        tab: 'properties',
+        nodeName: propertyActions.getProperty('name')?.value as string || labelText,
+        autoOpen: true,  // เปิด panel เมื่อคลิก property badge
+        loadExistingProperties: true
+      });
+    },
+    onHover: (isHover: boolean) => {
+      console.log('🖱️ PropertyCountBadge hover:', isHover);
+    }
+  });
+
+  // 3. นำส่วนประกอบทั้งหมดมาใส่ใน Container (ประกอบร่าง)
   boxContainer.addChild(boxGraphics);
   boxContainer.addChild(boxLabel);
   // เพิ่ม ConnectionPoint ทั้งหมดลงใน Container
@@ -186,6 +235,9 @@ export function createC4Box(
   boxContainer.addChild(connectionPoints.right);
   boxContainer.addChild(connectionPoints.bottom);
   boxContainer.addChild(connectionPoints.left);
+  
+  // เพิ่ม PropertyCountBadge ลงใน Container
+  boxContainer.addChild(propertyBadge);
 
   // 3. จัดตำแหน่งส่วนประกอบย่อย โดยอิงกับขนาดของ Graphics ที่คงที่
   // EditableLabel ใช้ pivot แล้ว ดังนั้นแค่ต้องวางไว้กึ่งกลาง box
@@ -193,6 +245,11 @@ export function createC4Box(
   boxLabel.y = boxGraphics.height / 2;
 
   // ConnectionPoint ถูกจัดตำแหน่งแล้วใน createAllConnectionPoints()
+  
+  // จัดตำแหน่ง PropertyCountBadge (top-right)
+  const badgeOffset = { x: 8, y: 8 };
+  propertyBadge.x = boxGraphics.width - badgeOffset.x;
+  propertyBadge.y = badgeOffset.y;
 
   // 4. กำหนดตำแหน่งเริ่มต้นของ Container ทั้งหมดบนฉาก
   // ใช้ random offset เพื่อป้องกันการซ้อนทับกัน
@@ -205,12 +262,16 @@ export function createC4Box(
   (boxContainer as any).boxGraphics = boxGraphics;
   (boxContainer as any).connectionPoints = connectionPoints;
   (boxContainer as any).nodeLabel = boxLabel;
+  (boxContainer as any).propertyBadge = propertyBadge;
 
-  // เก็บ metadata ของ Node
+  // เก็บ Enhanced metadata ของ Node
   (boxContainer as any).nodeData = {
+    nodeId: nodeId,               // เพิ่ม unique nodeId
     labelText: labelText,
     boxColor: boxColor,
-    nodeType: 'c4box' // ระบุประเภทของ Node
+    nodeType: 'c4box',           // ระบุประเภทของ Node
+    hasProperties: true,         // รองรับ Enhanced Property System
+    propertyCount: propertyActions.getPropertyCount()
   };
 
   // 6. เพิ่ม Event Handlers สำหรับการจัดการ hover และ click effects
@@ -242,28 +303,67 @@ export function createC4Box(
     }
   });
 
-  // เมื่อ click บน Container (Node area)
-  boxContainer.on('pointerdown', (event: FederatedPointerEvent) => {
-    event.stopPropagation();
-
-    // 1. Toggle Selection ของ Node ด้วยระบบใหม่
-    selectionManager.toggleSelection(selectableElement);
-
-    // 2. ปกติ: คลิกบน Node area = pin/unpin connection points
-    const isPinned = connectionStateManager.togglePin(boxContainer);
-
-    if (isPinned) {
-      fadeIn(connectionPoints.top, 150);
-      fadeIn(connectionPoints.right, 150);
-      fadeIn(connectionPoints.bottom, 150);
-      fadeIn(connectionPoints.left, 150);
-    } else if (!connectionStateManager.shouldShowConnections(boxContainer)) {
-      fadeOut(connectionPoints.top, 150);
-      fadeOut(connectionPoints.right, 150);
-      fadeOut(connectionPoints.bottom, 150);
-      fadeOut(connectionPoints.left, 150);
-    }
+  // สร้าง Double-Click Detector (Function-Based)
+  let isDoubleClickActive = false;
+  let selectableElementRef: any = null; // Store reference ที่จะถูกกำหนดภายหลัง
+  
+  const doubleClickDetector = createDoubleClickDetector({
+    threshold: 300,
+    preventSingleClick: false
   });
+  
+  const handleClick = doubleClickDetector(
+    // Double-click callback
+    () => {
+      console.log('🖱️ Double-click detected on C4Box:', nodeId);
+      isDoubleClickActive = true;
+      
+      // โหลด properties แต่ไม่เปิด panel (ให้เปิดผ่าน property badge เท่านั้น)
+      const result = drawerActions.openForNode(boxContainer, nodeId, {
+        tab: 'properties',
+        nodeName: propertyActions.getProperty('name')?.value as string || labelText,
+        autoFocus: false,
+        autoOpen: false,  // ไม่เปิด panel จาก double-click บน node
+        loadExistingProperties: true
+      });
+      
+      console.log('🗂️ drawerActions.openForNode result:', result);
+      
+      // Reset flag หลังจาก double-click process เสร็จ
+      setTimeout(() => {
+        isDoubleClickActive = false;
+      }, 50);
+    },
+    // Single-click callback
+    () => {
+      if (!isDoubleClickActive) {
+        console.log('🖱️ Single-click detected on C4Box:', nodeId);
+        
+        // Single-click behaviors: selection และ connection points
+        if (selectableElementRef) {
+          selectionManager.toggleSelection(selectableElementRef);
+        }
+
+        // Connection point pin/unpin
+        const isPinned = connectionStateManager.togglePin(boxContainer);
+
+        if (isPinned) {
+          fadeIn(connectionPoints.top, 150);
+          fadeIn(connectionPoints.right, 150);
+          fadeIn(connectionPoints.bottom, 150);
+          fadeIn(connectionPoints.left, 150);
+        } else if (!connectionStateManager.shouldShowConnections(boxContainer)) {
+          fadeOut(connectionPoints.top, 150);
+          fadeOut(connectionPoints.right, 150);
+          fadeOut(connectionPoints.bottom, 150);
+          fadeOut(connectionPoints.left, 150);
+        }
+      }
+    }
+  );
+
+  // เมื่อ click บน Container (Node area) - ใช้ unified click handler
+  boxContainer.on('pointerdown', handleClick);
 
   // เพิ่ม Event Handlers สำหรับ Connection Point ทั้งหมด (แยกจาก Container)
   setupConnectionPointEvents(connectionPoints.top, boxContainer);
@@ -306,6 +406,43 @@ export function createC4Box(
       window.dispatchEvent(event);
     },
     selectOnClick: false // ปิดการ auto-select เมื่อคลิก เพราะมี logic ซับซ้อนอยู่แล้ว
+  });
+
+  // กำหนด reference สำหรับ click handler
+  selectableElementRef = selectableElement;
+
+
+  // Setup Property Event Listeners (Function-Based)
+  const updatePropertyBadge = () => {
+    const currentCount = propertyActions.getPropertyCount();
+    propertyBadge.updateCount(currentCount, false);
+    
+    // อัพเดท metadata
+    (boxContainer as any).nodeData.propertyCount = currentCount;
+    
+    console.log('🏷️ Property count updated for Node:', nodeId, 'Count:', currentCount);
+  };
+
+  // Listen for property changes
+  window.addEventListener('property-changed', (event: Event) => {
+    const customEvent = event as CustomEvent;
+    if (customEvent.detail.elementId === nodeId) {
+      updatePropertyBadge();
+    }
+  });
+
+  window.addEventListener('properties-batch-updated', (event: Event) => {
+    const customEvent = event as CustomEvent;
+    if (customEvent.detail.elementId === nodeId) {
+      updatePropertyBadge();
+    }
+  });
+
+  // Listen for text changes from EditableLabel
+  boxLabel.on('text-changed', (newText: string) => {
+    // อัพเดท name property เมื่อ label เปลี่ยน
+    propertyActions.updateProperty('name', newText);
+    (boxContainer as any).nodeData.labelText = newText;
   });
 
   // 9. เพิ่ม Enhanced Styling ถ้าต้องการ (Additive Approach)

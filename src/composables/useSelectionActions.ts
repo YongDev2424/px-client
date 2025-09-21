@@ -1,7 +1,8 @@
 // src/composables/useSelectionActions.ts
 
 import { Container } from 'pixi.js';
-import { useSelectionState, SelectableElement, makeSelectable, removeSelectable } from '../stores/selectionState';
+import { useSelectionState, makeSelectable, removeSelectable } from '../stores/selectionState';
+import type { SelectableElement } from '../stores/selectionState';
 
 /**
  * Composable function สำหรับการจัดการ Selection actions
@@ -17,7 +18,7 @@ export function useSelectionActions() {
     getSelectedElements,
     getSelectedCount,
     updateAllIndicators
-  } = useSelectionState();
+  } = useSelectionState.getState();
 
   return {
     // === Selection Management ===
@@ -110,7 +111,7 @@ export function useSelectionActions() {
      * ได้ Containers ที่ถูกเลือกทั้งหมด
      */
     getSelectedContainers: () => {
-      return getSelectedElements().map(element => element.container);
+      return getSelectedElements().map((element: SelectableElement) => element.container);
     },
 
     /**

@@ -1,7 +1,8 @@
 // src/composables/useNodeActions.ts
 
 import { Container } from 'pixi.js';
-import { useNodeState, PropertyValue, getNodeId } from '../stores/nodeState';
+import { useNodeState, getNodeId } from '../stores/nodeState';
+import type { PropertyValue } from '../types/propertyTypes';
 
 /**
  * Composable function สำหรับการจัดการ Node actions
@@ -30,7 +31,7 @@ export function useNodeActions(container: Container) {
     setOriginalBounds,
     setCollapsedBounds,
     getCurrentBounds
-  } = useNodeState();
+  } = useNodeState.getState();
 
   return {
     // === Node State Management ===
@@ -228,7 +229,7 @@ export function useNodeBatchActions() {
     clearAllStates,
     getNodeCount,
     getAllNodeIds
-  } = useNodeState();
+  } = useNodeState.getState();
 
   return {
     /**

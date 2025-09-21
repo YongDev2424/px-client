@@ -1,6 +1,6 @@
 // src/composables/useThemeActions.ts
 
-import { useThemeState, ThemeConfig, AccessibilitySettings } from '../stores/themeState';
+import { useThemeState, } from '../stores/themeState';
 
 /**
  * Composable function สำหรับการจัดการ Theme actions
@@ -19,7 +19,7 @@ export function useThemeActions() {
     setLargeText,
     getAccessibilitySettings,
     syncWithBrowserPreferences
-  } = useThemeState();
+  } = useThemeState.getState();
 
   return {
     // === Theme Management ===
@@ -278,19 +278,19 @@ export function useThemeStateReactive() {
     currentThemeConfig,
     accessibilitySettings,
     availableThemes: Array.from(availableThemes.values()),
-    
+
     // Computed values
     isEnhanced: currentTheme === 'enhanced',
     isDefault: currentTheme === 'default',
-    
+
     // Accessibility states
     isHighContrast: accessibilitySettings.highContrast,
     isReducedMotion: accessibilitySettings.reducedMotion,
     isLargeText: accessibilitySettings.largeText,
-    hasAnyAccessibility: accessibilitySettings.highContrast || 
-                        accessibilitySettings.reducedMotion || 
-                        accessibilitySettings.largeText,
-    
+    hasAnyAccessibility: accessibilitySettings.highContrast ||
+      accessibilitySettings.reducedMotion ||
+      accessibilitySettings.largeText,
+
     // Theme information
     themeName: currentThemeConfig?.name || 'Unknown',
     themeDescription: currentThemeConfig?.description || '',
